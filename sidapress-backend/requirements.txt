@@ -1,0 +1,31 @@
+# Django Core
+Django==5.0.1
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.3.1
+
+# Database - PyMySQL funciona mejor en Windows
+PyMySQL==1.1.0
+cryptography==41.0.7
+
+# CORS
+django-cors-headers==4.3.1
+
+# Filters
+django-filter==23.5
+
+# Excel handling
+pandas==2.2.0
+openpyxl==3.1.2
+
+# Environment variables
+python-decouple==3.8
+
+# PDF generation
+reportlab==4.0.7
+
+# Date utilities
+python-dateutil==2.8.2
+
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
