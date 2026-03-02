@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box, Typography, Grid, FormControl, InputLabel, Select, MenuItem,
   CircularProgress, Alert, Card, CardContent,
@@ -12,6 +12,7 @@ import {
   useUnidadDetalle, useUnidadMetas, useUnidadClasificadores,
   usePorUnidad, useTendenciaFiltrada,
 } from '../../hooks/useBudget';
+import { useUserUnidades } from '../../hooks/useUserUnidades';
 import KPICard from '../../components/widgets/KPICard';
 import GaugeChart from '../../components/charts/GaugeChart';
 import TrendLineChart from '../../components/charts/TrendLineChart';
@@ -21,11 +22,28 @@ import { formatCurrency, formatPercent } from '../../utils/formatters';
 
 const UnidadDashboard = () => {
   const user = useAuthStore((state) => state.user);
+  const { isGlobalAccess, filterUnidadOptions, defaultCodigo } = useUserUnidades();
   const [anio, setAnio] = useState(2026);
-  const [unidadId, setUnidadId] = useState('');
+  const [unidadId, setUnidadId] = useState(defaultCodigo || '');
 
   // Get all units for the selector
   const { data: unidades } = usePorUnidad(anio);
+
+  // Filter unit options based on user's allowed units
+  const unidadOptions = useMemo(() => {
+    const allOptions = (unidades || []).map((u) => ({
+      value: u.unidad_codigo,
+      label: u.unidad_nombre,
+    }));
+    return filterUnidadOptions(allOptions);
+  }, [unidades, filterUnidadOptions]);
+
+  // Auto-select if only one unit available
+  useEffect(() => {
+    if (!unidadId && unidadOptions.length === 1) {
+      setUnidadId(unidadOptions[0].value);
+    }
+  }, [unidadOptions, unidadId]);
 
   const filters = useMemo(() => (unidadId ? { unidad_id: unidadId } : {}), [unidadId]);
 
@@ -95,10 +113,10 @@ const UnidadDashboard = () => {
               label="Unidad Orgánica"
               onChange={(e) => setUnidadId(e.target.value)}
             >
-              <MenuItem value=""><em>Seleccione una unidad</em></MenuItem>
-              {(unidades || []).map((u) => (
-                <MenuItem key={u.unidad_codigo} value={u.unidad_codigo}>
-                  {u.unidad_nombre}
+              {isGlobalAccess && <MenuItem value=""><em>Seleccione una unidad</em></MenuItem>}
+              {unidadOptions.map((u) => (
+                <MenuItem key={u.value} value={u.value}>
+                  {u.label}
                 </MenuItem>
               ))}
             </Select>

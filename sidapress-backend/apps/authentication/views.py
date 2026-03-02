@@ -10,6 +10,23 @@ from .serializers import (
     RolSerializer, PermisoSerializer, UsuarioRolSerializer,
 )
 from apps.auditoria.services import AuditService
+from .permissions import get_user_unidades
+
+
+def _build_user_response(user):
+    """Construye la respuesta de usuario con unidades permitidas."""
+    from apps.organizacion.models import UnidadOrganica
+
+    data = UsuarioSerializer(user).data
+    allowed_ids = get_user_unidades(user)
+    if allowed_ids is None:
+        data['allowed_unidades'] = None
+    else:
+        unidades = UnidadOrganica.objects.filter(
+            id__in=allowed_ids
+        ).values('id', 'codigo', 'nombre')
+        data['allowed_unidades'] = list(unidades)
+    return data
 
 
 @api_view(['POST'])
@@ -37,7 +54,7 @@ def login_view(request):
     return Response({
         'access': str(refresh.access_token),
         'refresh': str(refresh),
-        'user': UsuarioSerializer(user).data,
+        'user': _build_user_response(user),
     })
 
 
@@ -65,8 +82,7 @@ def logout_view(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def profile_view(request):
-    serializer = UsuarioSerializer(request.user)
-    return Response(serializer.data)
+    return Response(_build_user_response(request.user))
 
 
 @api_view(['PUT'])

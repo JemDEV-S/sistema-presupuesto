@@ -29,6 +29,7 @@ import {
   ListAlt,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import useAuthStore from '../../store/authStore';
 
 const DRAWER_WIDTH = 260;
 
@@ -66,6 +67,8 @@ const selectedSx = {
 const Sidebar = ({ mobileOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.is_superuser || user?.is_staff;
   const [dashboardOpen, setDashboardOpen] = useState(
     location.pathname.startsWith('/dashboard')
   );
@@ -146,25 +149,29 @@ const Sidebar = ({ mobileOpen, onClose }) => {
         ))}
       </List>
 
-      <Divider />
+      {isAdmin && (
+        <>
+          <Divider />
 
-      <List sx={{ px: 1 }}>
-        <Typography variant="overline" sx={{ px: 2, color: 'text.secondary' }}>
-          Administración
-        </Typography>
-        {adminItems.map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-            <ListItemButton
-              onClick={() => handleNavigation(item.path)}
-              selected={location.pathname === item.path}
-              sx={selectedSx}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
+          <List sx={{ px: 1 }}>
+            <Typography variant="overline" sx={{ px: 2, color: 'text.secondary' }}>
+              Administración
+            </Typography>
+            {adminItems.map((item) => (
+              <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+                <ListItemButton
+                  onClick={() => handleNavigation(item.path)}
+                  selected={location.pathname === item.path}
+                  sx={selectedSx}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </>
+      )}
     </Box>
   );
 

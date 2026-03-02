@@ -9,6 +9,7 @@ import {
 import {
   usePorRubro, usePorFuente, usePorUnidad, useTendenciaFiltrada,
 } from '../../hooks/useBudget';
+import { useUserUnidades } from '../../hooks/useUserUnidades';
 import KPICard from '../../components/widgets/KPICard';
 import GaugeChart from '../../components/charts/GaugeChart';
 import RubroBarChart from '../../components/charts/RubroBarChart';
@@ -19,8 +20,9 @@ import FilterBar from '../../components/common/FilterBar';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 
 const RubrosDashboard = () => {
+  const { filterUnidadOptions, defaultCodigo } = useUserUnidades();
   const [anio, setAnio] = useState(2026);
-  const [filterValues, setFilterValues] = useState({ fuente_id: '', unidad_id: '' });
+  const [filterValues, setFilterValues] = useState({ fuente_id: '', unidad_id: defaultCodigo || '' });
 
   const activeFilters = useMemo(() => {
     const f = {};
@@ -47,11 +49,12 @@ const RubrosDashboard = () => {
   }, [fuentes]);
 
   const unidadOptions = useMemo(() => {
-    return (unidades || []).map((u) => ({
+    const allOptions = (unidades || []).map((u) => ({
       value: u.unidad_codigo,
       label: u.unidad_nombre || u.unidad_codigo,
     }));
-  }, [unidades]);
+    return filterUnidadOptions(allOptions);
+  }, [unidades, filterUnidadOptions]);
 
   const filters = [
     { name: 'fuente_id', label: 'Fuente Financiamiento', options: fuenteOptions, width: 220 },

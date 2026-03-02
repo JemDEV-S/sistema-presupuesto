@@ -3,11 +3,11 @@ from rest_framework.routers import DefaultRouter
 from . import views
 
 router = DefaultRouter()
-router.register(r"metas", views.MetaViewSet)
-router.register(r"ejecuciones", views.EjecucionPresupuestalViewSet)
-router.register(r"ejecuciones-mensuales", views.EjecucionMensualViewSet)
-router.register(r"modificaciones", views.ModificacionViewSet)
-router.register(r"avances-fisicos", views.AvanceFisicoViewSet)
+router.register(r"metas", views.MetaViewSet, basename="meta")
+router.register(r"ejecuciones", views.EjecucionPresupuestalViewSet, basename="ejecucionpresupuestal")
+router.register(r"ejecuciones-mensuales", views.EjecucionMensualViewSet, basename="ejecucionmensual")
+router.register(r"modificaciones", views.ModificacionViewSet, basename="modificacionpresupuestal")
+router.register(r"avances-fisicos", views.AvanceFisicoViewSet, basename="avancefisico")
 
 urlpatterns = [
     # Dashboard endpoints

@@ -11,6 +11,7 @@ import useAuthStore from '../../store/authStore';
 import {
   useResumen, useTendencia, usePorFuente, usePorGenerica, usePorUnidad, useTopMetas,
 } from '../../hooks/useBudget';
+import { useUserUnidades } from '../../hooks/useUserUnidades';
 import KPICard from '../../components/widgets/KPICard';
 import GaugeChart from '../../components/charts/GaugeChart';
 import TrendLineChart from '../../components/charts/TrendLineChart';
@@ -23,10 +24,11 @@ import { formatCurrency, formatPercent } from '../../utils/formatters';
 
 const ExecutiveDashboard = () => {
   const user = useAuthStore((state) => state.user);
+  const { isGlobalAccess, filterUnidadOptions, defaultCodigo } = useUserUnidades();
   const [anio, setAnio] = useState(2026);
   const [filterValues, setFilterValues] = useState({
     fuente: '',
-    unidad: '',
+    unidad: defaultCodigo || '',
   });
 
   // Build active filters (exclude empty values)
@@ -57,11 +59,12 @@ const ExecutiveDashboard = () => {
   }, [porFuente]);
 
   const unidadOptions = useMemo(() => {
-    return (porUnidad || []).map((u) => ({
+    const allOptions = (porUnidad || []).map((u) => ({
       value: u.unidad_id || u.unidad_codigo,
       label: u.unidad_nombre || u.unidad_codigo,
     }));
-  }, [porUnidad]);
+    return filterUnidadOptions(allOptions);
+  }, [porUnidad, filterUnidadOptions]);
 
   const filters = [
     { name: 'fuente', label: 'Fuente Financiamiento', options: fuenteOptions, width: 220 },

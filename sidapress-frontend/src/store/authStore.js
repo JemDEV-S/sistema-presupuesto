@@ -39,4 +39,33 @@ const useAuthStore = create((set) => ({
   clearError: () => set({ error: null }),
 }));
 
+// Selectores para acceso por unidad orgánica
+export const selectIsGlobalAccess = (state) => {
+  if (!state.user) return false;
+  return state.user.is_superuser || state.user.allowed_unidades === null;
+};
+
+export const selectAllowedUnidades = (state) => {
+  if (!state.user || state.user.allowed_unidades === null) return null;
+  return state.user.allowed_unidades || [];
+};
+
+export const selectAllowedUnidadCodigos = (state) => {
+  const unidades = selectAllowedUnidades(state);
+  if (unidades === null) return null;
+  return unidades.map((u) => u.codigo);
+};
+
+export const selectDefaultUnidadCodigo = (state) => {
+  const unidades = selectAllowedUnidades(state);
+  if (unidades === null) return null;
+  if (unidades.length === 1) return unidades[0].codigo;
+  return null;
+};
+
+export const selectHasPermission = (code) => (state) => {
+  const perms = state.user?.permisos || [];
+  return perms.includes('*.*') || perms.includes(code);
+};
+
 export default useAuthStore;

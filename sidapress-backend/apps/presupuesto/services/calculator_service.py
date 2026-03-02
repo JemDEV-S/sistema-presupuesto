@@ -4,9 +4,11 @@ from django.utils import timezone
 from apps.presupuesto.models import EjecucionPresupuestal, EjecucionMensual, Meta
 
 
-def get_resumen_general(anio_fiscal_id):
+def get_resumen_general(anio_fiscal_id, allowed_unidad_ids=None):
     """Calcula el resumen general de ejecución presupuestal para un año fiscal."""
     ejecuciones = EjecucionPresupuestal.objects.filter(anio_fiscal_id=anio_fiscal_id)
+    if allowed_unidad_ids is not None:
+        ejecuciones = ejecuciones.filter(meta__unidad_organica_id__in=allowed_unidad_ids)
 
     totales = ejecuciones.aggregate(
         total_pia=Sum('pia'),
@@ -15,9 +17,12 @@ def get_resumen_general(anio_fiscal_id):
         total_compromiso=Sum('compromiso_anual'),
     )
 
-    mensuales = EjecucionMensual.objects.filter(
+    mensuales_qs = EjecucionMensual.objects.filter(
         ejecucion__anio_fiscal_id=anio_fiscal_id
-    ).aggregate(
+    )
+    if allowed_unidad_ids is not None:
+        mensuales_qs = mensuales_qs.filter(ejecucion__meta__unidad_organica_id__in=allowed_unidad_ids)
+    mensuales = mensuales_qs.aggregate(
         total_devengado=Sum('devengado'),
         total_girado=Sum('girado'),
         total_pagado=Sum('pagado'),
@@ -30,6 +35,10 @@ def get_resumen_general(anio_fiscal_id):
 
     avance_devengado = float(devengado / pim * 100) if pim > 0 else 0
     avance_certificado = float(certificado / pim * 100) if pim > 0 else 0
+
+    metas_qs = Meta.objects.filter(anio_fiscal_id=anio_fiscal_id, is_active=True)
+    if allowed_unidad_ids is not None:
+        metas_qs = metas_qs.filter(unidad_organica_id__in=allowed_unidad_ids)
 
     return {
         'pia': totales['total_pia'] or 0,
@@ -44,15 +53,18 @@ def get_resumen_general(anio_fiscal_id):
         'avance_devengado_pct': round(avance_devengado, 2),
         'avance_certificado_pct': round(avance_certificado, 2),
         'total_ejecuciones': ejecuciones.count(),
-        'total_metas': Meta.objects.filter(anio_fiscal_id=anio_fiscal_id, is_active=True).count(),
+        'total_metas': metas_qs.count(),
     }
 
 
-def get_ejecucion_mensual_acumulada(anio_fiscal_id):
+def get_ejecucion_mensual_acumulada(anio_fiscal_id, allowed_unidad_ids=None):
     """Retorna la ejecución mensual acumulada para gráfico de tendencia."""
-    mensuales = EjecucionMensual.objects.filter(
+    mensuales_qs = EjecucionMensual.objects.filter(
         ejecucion__anio_fiscal_id=anio_fiscal_id
-    ).values('mes').annotate(
+    )
+    if allowed_unidad_ids is not None:
+        mensuales_qs = mensuales_qs.filter(ejecucion__meta__unidad_organica_id__in=allowed_unidad_ids)
+    mensuales = mensuales_qs.values('mes').annotate(
         compromiso=Sum('compromiso'),
         devengado=Sum('devengado'),
         girado=Sum('girado'),
@@ -91,12 +103,15 @@ def get_ejecucion_mensual_acumulada(anio_fiscal_id):
     return resultado
 
 
-def get_ejecucion_por_fuente(anio_fiscal_id):
+def get_ejecucion_por_fuente(anio_fiscal_id, allowed_unidad_ids=None):
     """Ejecución agrupada por fuente de financiamiento (vía rubro)."""
+    qs = EjecucionPresupuestal.objects.filter(
+        anio_fiscal_id=anio_fiscal_id
+    )
+    if allowed_unidad_ids is not None:
+        qs = qs.filter(meta__unidad_organica_id__in=allowed_unidad_ids)
     return list(
-        EjecucionPresupuestal.objects.filter(
-            anio_fiscal_id=anio_fiscal_id
-        ).values(
+        qs.values(
             fuente_nombre=F('rubro__fuente__nombre'),
             fuente_codigo=F('rubro__fuente__codigo'),
         ).annotate(
@@ -106,12 +121,15 @@ def get_ejecucion_por_fuente(anio_fiscal_id):
     )
 
 
-def get_ejecucion_por_generica(anio_fiscal_id):
+def get_ejecucion_por_generica(anio_fiscal_id, allowed_unidad_ids=None):
     """Ejecución agrupada por genérica de gasto."""
+    qs = EjecucionPresupuestal.objects.filter(
+        anio_fiscal_id=anio_fiscal_id
+    )
+    if allowed_unidad_ids is not None:
+        qs = qs.filter(meta__unidad_organica_id__in=allowed_unidad_ids)
     return list(
-        EjecucionPresupuestal.objects.filter(
-            anio_fiscal_id=anio_fiscal_id
-        ).values(
+        qs.values(
             generica=F('clasificador_gasto__generica'),
         ).annotate(
             total_pim=Sum('pim'),
@@ -120,11 +138,14 @@ def get_ejecucion_por_generica(anio_fiscal_id):
     )
 
 
-def get_ejecucion_por_unidad(anio_fiscal_id):
+def get_ejecucion_por_unidad(anio_fiscal_id, allowed_unidad_ids=None):
     """Ejecución agrupada por unidad orgánica."""
-    ejecuciones = EjecucionPresupuestal.objects.filter(
+    qs = EjecucionPresupuestal.objects.filter(
         anio_fiscal_id=anio_fiscal_id
-    ).values(
+    )
+    if allowed_unidad_ids is not None:
+        qs = qs.filter(meta__unidad_organica_id__in=allowed_unidad_ids)
+    ejecuciones = qs.values(
         unidad_nombre=F('meta__unidad_organica__nombre'),
         unidad_codigo=F('meta__unidad_organica__codigo'),
     ).annotate(
@@ -136,10 +157,13 @@ def get_ejecucion_por_unidad(anio_fiscal_id):
     for ej in ejecuciones:
         pim = ej['total_pim'] or Decimal('0')
         # Obtener devengado de mensuales
-        devengado = EjecucionMensual.objects.filter(
+        mensual_qs = EjecucionMensual.objects.filter(
             ejecucion__anio_fiscal_id=anio_fiscal_id,
             ejecucion__meta__unidad_organica__codigo=ej['unidad_codigo'],
-        ).aggregate(total=Sum('devengado'))['total'] or Decimal('0')
+        )
+        if allowed_unidad_ids is not None:
+            mensual_qs = mensual_qs.filter(ejecucion__meta__unidad_organica_id__in=allowed_unidad_ids)
+        devengado = mensual_qs.aggregate(total=Sum('devengado'))['total'] or Decimal('0')
 
         avance = float(devengado / pim * 100) if pim > 0 else 0
         resultado.append({
@@ -154,11 +178,14 @@ def get_ejecucion_por_unidad(anio_fiscal_id):
     return resultado
 
 
-def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim'):
+def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim', allowed_unidad_ids=None):
     """Top metas por PIM o por avance."""
-    ejecuciones = EjecucionPresupuestal.objects.filter(
+    qs = EjecucionPresupuestal.objects.filter(
         anio_fiscal_id=anio_fiscal_id
-    ).values(
+    )
+    if allowed_unidad_ids is not None:
+        qs = qs.filter(meta__unidad_organica_id__in=allowed_unidad_ids)
+    ejecuciones = qs.values(
         'meta_id',
         meta_codigo=F('meta__codigo'),
         meta_nombre=F('meta__nombre'),
@@ -171,10 +198,13 @@ def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim'):
     resultado = []
     for ej in ejecuciones:
         pim = ej['total_pim'] or Decimal('0')
-        devengado = EjecucionMensual.objects.filter(
+        mensual_qs = EjecucionMensual.objects.filter(
             ejecucion__meta_id=ej['meta_id'],
             ejecucion__anio_fiscal_id=anio_fiscal_id,
-        ).aggregate(total=Sum('devengado'))['total'] or Decimal('0')
+        )
+        if allowed_unidad_ids is not None:
+            mensual_qs = mensual_qs.filter(ejecucion__meta__unidad_organica_id__in=allowed_unidad_ids)
+        devengado = mensual_qs.aggregate(total=Sum('devengado'))['total'] or Decimal('0')
 
         avance = float(devengado / pim * 100) if pim > 0 else 0
         resultado.append({
@@ -199,6 +229,8 @@ def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim'):
 def _apply_ejecucion_filters(qs, filters):
     """Aplica filtros comunes a un queryset de EjecucionPresupuestal.
     Usa 'codigo' (string) para unidad y fuente, ya que el frontend envía códigos."""
+    if filters.get('allowed_unidad_ids') is not None:
+        qs = qs.filter(meta__unidad_organica_id__in=filters['allowed_unidad_ids'])
     if filters.get('unidad_codigo'):
         qs = qs.filter(meta__unidad_organica__codigo=filters['unidad_codigo'])
     if filters.get('fuente_codigo'):
@@ -215,6 +247,8 @@ def _apply_ejecucion_filters(qs, filters):
 def _apply_mensual_filters(qs, filters):
     """Aplica filtros comunes a un queryset de EjecucionMensual.
     Usa 'codigo' (string) para unidad y fuente, ya que el frontend envía códigos."""
+    if filters.get('allowed_unidad_ids') is not None:
+        qs = qs.filter(ejecucion__meta__unidad_organica_id__in=filters['allowed_unidad_ids'])
     if filters.get('unidad_codigo'):
         qs = qs.filter(ejecucion__meta__unidad_organica__codigo=filters['unidad_codigo'])
     if filters.get('fuente_codigo'):
@@ -258,6 +292,8 @@ def get_resumen_filtrado(anio_fiscal_id, filters=None):
 
     # Count metas
     metas_qs = Meta.objects.filter(anio_fiscal_id=anio_fiscal_id, is_active=True)
+    if filters.get('allowed_unidad_ids') is not None:
+        metas_qs = metas_qs.filter(unidad_organica_id__in=filters['allowed_unidad_ids'])
     if filters.get('unidad_codigo'):
         metas_qs = metas_qs.filter(unidad_organica__codigo=filters['unidad_codigo'])
     if filters.get('tipo_meta'):
@@ -433,6 +469,8 @@ def get_ejecucion_por_tipo_meta(anio_fiscal_id, filters=None):
             ejecucion__anio_fiscal_id=anio_fiscal_id,
             ejecucion__meta__tipo_meta=t['tipo_meta'],
         )
+        if filters.get('allowed_unidad_ids') is not None:
+            mensual_qs = mensual_qs.filter(ejecucion__meta__unidad_organica_id__in=filters['allowed_unidad_ids'])
         if filters.get('unidad_codigo'):
             mensual_qs = mensual_qs.filter(ejecucion__meta__unidad_organica__codigo=filters['unidad_codigo'])
         if filters.get('fuente_codigo'):
@@ -477,6 +515,8 @@ def get_ejecucion_por_producto_proyecto(anio_fiscal_id, filters=None):
             ejecucion__anio_fiscal_id=anio_fiscal_id,
             ejecucion__meta__codigo_producto_proyecto=p['codigo_producto_proyecto'],
         )
+        if filters.get('allowed_unidad_ids') is not None:
+            mensual_qs = mensual_qs.filter(ejecucion__meta__unidad_organica_id__in=filters['allowed_unidad_ids'])
         dev = mensual_qs.aggregate(total=Sum('devengado'))['total'] or Decimal('0')
         avance = float(dev / pim * 100) if pim > 0 else 0
         resultado.append({

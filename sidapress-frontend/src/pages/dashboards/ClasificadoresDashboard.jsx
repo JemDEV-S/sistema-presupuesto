@@ -10,6 +10,7 @@ import {
   useClasificadorDetalle, usePorGenerica, usePorUnidad,
   usePorFuente, useTendenciaFiltrada,
 } from '../../hooks/useBudget';
+import { useUserUnidades } from '../../hooks/useUserUnidades';
 import KPICard from '../../components/widgets/KPICard';
 import GaugeChart from '../../components/charts/GaugeChart';
 import GenericaBarChart from '../../components/charts/GenericaBarChart';
@@ -21,8 +22,9 @@ import FilterBar from '../../components/common/FilterBar';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 
 const ClasificadoresDashboard = () => {
+  const { filterUnidadOptions, defaultCodigo } = useUserUnidades();
   const [anio, setAnio] = useState(2026);
-  const [filterValues, setFilterValues] = useState({ generica: '', unidad_id: '', fuente_id: '' });
+  const [filterValues, setFilterValues] = useState({ generica: '', unidad_id: defaultCodigo || '', fuente_id: '' });
 
   const activeFilters = useMemo(() => {
     const f = {};
@@ -51,8 +53,9 @@ const ClasificadoresDashboard = () => {
   }, [genericas]);
 
   const unidadOptions = useMemo(() => {
-    return (unidades || []).map((u) => ({ value: u.unidad_codigo, label: u.unidad_nombre }));
-  }, [unidades]);
+    const allOptions = (unidades || []).map((u) => ({ value: u.unidad_codigo, label: u.unidad_nombre }));
+    return filterUnidadOptions(allOptions);
+  }, [unidades, filterUnidadOptions]);
 
   const fuenteOptions = useMemo(() => {
     return (fuentes || []).map((f) => ({ value: f.fuente_codigo, label: f.fuente_nombre }));
