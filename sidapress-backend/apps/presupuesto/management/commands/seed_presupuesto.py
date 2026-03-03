@@ -96,18 +96,18 @@ class Command(BaseCommand):
 
         # 5. Metas
         metas_data = [
-            ('0001', 'GESTIÓN ADMINISTRATIVA', 'ACTIVIDAD', '003'),
-            ('0002', 'CONDUCCIÓN Y ORIENTACIÓN SUPERIOR', 'ACTIVIDAD', '001'),
-            ('0003', 'GESTIÓN DE RECURSOS HUMANOS', 'ACTIVIDAD', '003'),
-            ('0004', 'LIMPIEZA PÚBLICA', 'ACTIVIDAD', '006'),
-            ('0005', 'SERENAZGO', 'ACTIVIDAD', '006'),
-            ('0006', 'MANTENIMIENTO VIAL', 'ACTIVIDAD', '004'),
-            ('0007', 'PROGRAMA VASO DE LECHE', 'ACTIVIDAD', '005'),
+            ('0001', 'GESTIÓN ADMINISTRATIVA', 'PRODUCTO', '003'),
+            ('0002', 'CONDUCCIÓN Y ORIENTACIÓN SUPERIOR', 'PRODUCTO', '001'),
+            ('0003', 'GESTIÓN DE RECURSOS HUMANOS', 'PRODUCTO', '003'),
+            ('0004', 'LIMPIEZA PÚBLICA', 'PRODUCTO', '006'),
+            ('0005', 'SERENAZGO', 'PRODUCTO', '006'),
+            ('0006', 'MANTENIMIENTO VIAL', 'PRODUCTO', '004'),
+            ('0007', 'PROGRAMA VASO DE LECHE', 'PRODUCTO', '005'),
             ('0008', 'MEJORAMIENTO DE PISTAS Y VEREDAS', 'PROYECTO', '009'),
             ('0009', 'CONSTRUCCIÓN DE PARQUE RECREACIONAL', 'PROYECTO', '009'),
             ('0010', 'MODERNIZACIÓN DE SISTEMAS DE INFORMACIÓN', 'PROYECTO', '008'),
-            ('0011', 'PROGRAMA DE ADULTO MAYOR', 'ACTIVIDAD', '010'),
-            ('0012', 'DEMUNA Y DEFENSA CIVIL', 'ACTIVIDAD', '005'),
+            ('0011', 'PROGRAMA DE ADULTO MAYOR', 'PRODUCTO', '010'),
+            ('0012', 'DEMUNA Y DEFENSA CIVIL', 'PRODUCTO', '005'),
         ]
         metas = {}
         for codigo, nombre, tipo, unidad_cod in metas_data:

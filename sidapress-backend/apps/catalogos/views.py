@@ -1,5 +1,6 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+from apps.authentication.permissions import HasPermission
 from .models import AnioFiscal, FuenteFinanciamiento, Rubro, ClasificadorGasto
 from .serializers import (
     AnioFiscalSerializer, FuenteFinanciamientoSerializer,
@@ -33,6 +34,16 @@ class RubroViewSet(viewsets.ModelViewSet):
 class ClasificadorGastoViewSet(viewsets.ModelViewSet):
     queryset = ClasificadorGasto.objects.all()
     serializer_class = ClasificadorGastoSerializer
-    permission_classes = [IsAuthenticated]
     filterset_fields = ['is_active', 'generica']
     search_fields = ['codigo', 'nombre']
+
+    permission_map = {
+        'list': 'clasificador.view', 'retrieve': 'clasificador.view',
+        'create': 'clasificador.create',
+        'update': 'clasificador.edit', 'partial_update': 'clasificador.edit',
+        'destroy': 'clasificador.delete',
+    }
+
+    def get_permissions(self):
+        self.required_permission = self.permission_map.get(self.action)
+        return [IsAuthenticated(), HasPermission()]

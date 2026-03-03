@@ -40,10 +40,10 @@ const LoginPage = () => {
       <Card sx={{ width: 400, mx: 2 }}>
         <CardContent sx={{ p: 4 }}>
           <Typography variant="h4" align="center" gutterBottom color="primary">
-            SIDAPRESS
+            Consulta Presupuestal
           </Typography>
           <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-            Sistema de Dashboards Presupuestales
+            Sistema de Consulta Presupuestal
           </Typography>
 
           {error && (

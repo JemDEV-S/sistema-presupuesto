@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import {
   Box, Typography, Grid, FormControl, InputLabel, Select, MenuItem,
-  CircularProgress, Card, CardContent,
+  CircularProgress,
 } from '@mui/material';
 import {
-  AccountBalance, TrendingUp, Savings, Category, Speed,
+  TrendingUp, Savings, Category, Speed,
 } from '@mui/icons-material';
 import {
   usePorRubro, usePorFuente, usePorUnidad, useTendenciaFiltrada,
@@ -12,9 +12,8 @@ import {
 import { useUserUnidades } from '../../hooks/useUserUnidades';
 import KPICard from '../../components/widgets/KPICard';
 import GaugeChart from '../../components/charts/GaugeChart';
-import RubroBarChart from '../../components/charts/RubroBarChart';
-import FuentePieChart from '../../components/charts/FuentePieChart';
-import TrendLineChart from '../../components/charts/TrendLineChart';
+import ChartWrapper from '../../components/charts/ChartWrapper';
+import ResumenPresupuestalChart from '../../components/charts/ResumenPresupuestalChart';
 import SortableTable, { ProgressCell } from '../../components/tables/SortableTable';
 import FilterBar from '../../components/common/FilterBar';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
@@ -40,7 +39,6 @@ const RubrosDashboard = () => {
     setFilterValues((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Build filter options
   const fuenteOptions = useMemo(() => {
     return (fuentes || []).map((f) => ({
       value: f.fuente_codigo,
@@ -61,7 +59,6 @@ const RubrosDashboard = () => {
     { name: 'unidad_id', label: 'Unidad Orgánica', options: unidadOptions, width: 220 },
   ];
 
-  // Calculate KPI summaries
   const kpis = useMemo(() => {
     const data = rubros || [];
     const totalPim = data.reduce((sum, r) => sum + r.total_pim, 0);
@@ -71,21 +68,48 @@ const RubrosDashboard = () => {
     return { totalRubros: data.length, totalPim, totalDevengado, totalCertificado, avancePromedio };
   }, [rubros]);
 
+  const rubroChartData = useMemo(() => {
+    return (rubros || []).map((item) => ({
+      name: item.rubro_nombre,
+      PIM: parseFloat(item.total_pim) || 0,
+      Certificado: parseFloat(item.total_certificado) || 0,
+      Devengado: parseFloat(item.total_devengado) || 0,
+    }));
+  }, [rubros]);
+
+  const tendenciaChartData = useMemo(() => {
+    return (tendencia || []).map((item) => ({
+      name: item.mes_nombre,
+      'Devengado Acum.': item.acum_devengado,
+      'Compromiso Acum.': item.acum_compromiso,
+      'Girado Acum.': item.acum_girado,
+    }));
+  }, [tendencia]);
+
+  const fuenteChartData = useMemo(() => {
+    return (fuentes || []).map((item) => ({
+      name: item.fuente_nombre,
+      PIM: parseFloat(item.total_pim) || 0,
+      Devengado: parseFloat(item.total_devengado) || 0,
+      Certificado: parseFloat(item.total_certificado) || 0,
+    }));
+  }, [fuentes]);
+
+  const resumenData = useMemo(() => ({
+    pim: kpis.totalPim,
+    certificado: kpis.totalCertificado,
+    devengado: kpis.totalDevengado,
+  }), [kpis]);
+
   const tableColumns = [
     { key: 'rubro_codigo', label: 'Código', sortable: true },
     {
       key: 'rubro_nombre', label: 'Rubro', sortable: true,
-      render: (val) => (
-        <Typography variant="body2" sx={{ maxWidth: 250 }}>
-          {val?.length > 40 ? val.substring(0, 40) + '...' : val}
-        </Typography>
-      ),
+      render: (val) => <Typography variant="body2">{val}</Typography>,
     },
     {
       key: 'fuente_nombre', label: 'Fuente', sortable: true,
-      render: (val) => (
-        <Typography variant="caption">{val?.length > 25 ? val.substring(0, 25) + '...' : val}</Typography>
-      ),
+      render: (val) => <Typography variant="caption">{val}</Typography>,
     },
     { key: 'total_pim', label: 'PIM', align: 'right', sortable: true, format: formatCurrency },
     { key: 'total_certificado', label: 'Certificado', align: 'right', sortable: true, format: formatCurrency },
@@ -119,7 +143,6 @@ const RubrosDashboard = () => {
         </FormControl>
       </Box>
 
-      {/* Filters */}
       <FilterBar filters={filters} values={filterValues} onChange={handleFilterChange} collapsible />
 
       {isLoading ? (
@@ -144,6 +167,13 @@ const RubrosDashboard = () => {
             </Grid>
           </Grid>
 
+          {/* Resumen Presupuestal */}
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid size={12}>
+              <ResumenPresupuestalChart resumen={resumenData} />
+            </Grid>
+          </Grid>
+
           {/* Gauges */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid size={{ xs: 6, md: 4 }}>
@@ -160,15 +190,50 @@ const RubrosDashboard = () => {
           {/* Charts */}
           <Grid container spacing={3} sx={{ mb: 3 }}>
             <Grid size={{ xs: 12, lg: 8 }}>
-              <TrendLineChart data={tendencia || []} />
+              <ChartWrapper
+                title="Tendencia de Ejecución Mensual"
+                data={tendenciaChartData}
+                dataKeys={[
+                  { key: 'Devengado Acum.', label: 'Devengado Acum.', color: '#1565c0', defaultVisible: true },
+                  { key: 'Compromiso Acum.', label: 'Compromiso Acum.', color: '#f57c00', defaultVisible: true },
+                  { key: 'Girado Acum.', label: 'Girado Acum.', color: '#388e3c', defaultVisible: true },
+                ]}
+                defaultChartType="line"
+                allowedChartTypes={['line', 'area', 'bar']}
+                xAxisAngle={0}
+                xAxisHeight={30}
+                height={300}
+              />
             </Grid>
             <Grid size={{ xs: 12, lg: 4 }}>
-              <FuentePieChart data={fuentes || []} />
+              <ChartWrapper
+                title="Distribución por Fuente"
+                data={fuenteChartData}
+                dataKeys={[
+                  { key: 'PIM', label: 'PIM', color: '#1565c0', defaultVisible: true },
+                  { key: 'Certificado', label: 'Certificado', color: '#7b1fa2', defaultVisible: false },
+                  { key: 'Devengado', label: 'Devengado', color: '#00897b', defaultVisible: false },
+                ]}
+                defaultChartType="pie"
+                allowedChartTypes={['pie', 'bar']}
+                height={300}
+              />
             </Grid>
           </Grid>
 
           <Box sx={{ mb: 3 }}>
-            <RubroBarChart data={rubros || []} />
+            <ChartWrapper
+              title="Ejecución por Rubro"
+              data={rubroChartData}
+              dataKeys={[
+                { key: 'PIM', label: 'PIM', color: '#1565c0', defaultVisible: true },
+                { key: 'Certificado', label: 'Certificado', color: '#7b1fa2', defaultVisible: true },
+                { key: 'Devengado', label: 'Devengado', color: '#00897b', defaultVisible: true },
+              ]}
+              defaultChartType="bar"
+              allowedChartTypes={['bar', 'line', 'area', 'pie']}
+              height={350}
+            />
           </Box>
 
           {/* Table */}

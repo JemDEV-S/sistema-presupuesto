@@ -1,5 +1,5 @@
 """
-Configuración de producción para SIDAPRESS.
+Configuración de producción para Sistema de Consulta Presupuestal.
 Usar con: DJANGO_SETTINGS_MODULE=config.settings_prod
 """
 from .settings import *

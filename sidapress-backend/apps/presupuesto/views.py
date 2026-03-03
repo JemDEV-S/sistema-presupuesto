@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from apps.catalogos.models import AnioFiscal
-from apps.authentication.permissions import get_user_unidades
+from apps.authentication.permissions import get_user_unidades, HasPermission
 from apps.organizacion.models import UnidadOrganica
 from .models import Meta, EjecucionPresupuestal, EjecucionMensual, ModificacionPresupuestal, AvanceFisico
 from .serializers import (
@@ -60,10 +60,20 @@ def _resolve_anio(request):
 
 class MetaViewSet(viewsets.ModelViewSet):
     serializer_class = MetaSerializer
-    permission_classes = [IsAuthenticated]
     filterset_class = MetaFilter
     search_fields = ['codigo', 'nombre', 'finalidad']
     ordering_fields = ['codigo', 'nombre']
+
+    permission_map = {
+        'list': 'meta.view', 'retrieve': 'meta.view',
+        'create': 'meta.create',
+        'update': 'meta.edit', 'partial_update': 'meta.edit',
+        'destroy': 'meta.delete',
+    }
+
+    def get_permissions(self):
+        self.required_permission = self.permission_map.get(self.action)
+        return [IsAuthenticated(), HasPermission()]
 
     def get_queryset(self):
         qs = Meta.objects.select_related('anio_fiscal', 'unidad_organica').all()
@@ -209,6 +219,8 @@ def _extract_filters(request):
         filters['rubro_id'] = int(request.query_params['rubro_id'])
     if request.query_params.get('tipo_meta'):
         filters['tipo_meta'] = request.query_params['tipo_meta']
+    if request.query_params.get('tipo_actividad'):
+        filters['tipo_actividad'] = request.query_params['tipo_actividad']
     if request.query_params.get('generica'):
         filters['generica'] = request.query_params['generica']
 
@@ -280,7 +292,7 @@ def dashboard_por_rubro(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def dashboard_por_tipo_meta(request):
-    """Ejecución agrupada por tipo de meta (ACTIVIDAD vs PROYECTO)."""
+    """Ejecución agrupada por tipo de meta (PRODUCTO vs PROYECTO)."""
     anio_obj = _resolve_anio(request)
     if not anio_obj:
         return Response([])

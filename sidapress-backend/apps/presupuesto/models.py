@@ -4,8 +4,14 @@ from django.conf import settings
 
 class Meta(models.Model):
     TIPO_META = [
-        ('ACTIVIDAD', 'Actividad'),
+        ('PRODUCTO', 'Producto'),
         ('PROYECTO', 'Proyecto'),
+    ]
+
+    TIPO_ACTIVIDAD = [
+        ('ACTIVIDAD', 'Actividad'),
+        ('OBRA', 'Obra'),
+        ('ACCION_INVERSION', 'Acción de Inversión'),
     ]
 
     anio_fiscal = models.ForeignKey(
@@ -18,7 +24,7 @@ class Meta(models.Model):
     codigo = models.CharField(max_length=20)
     nombre = models.CharField(max_length=500)
     finalidad = models.TextField(blank=True, default='')
-    tipo_meta = models.CharField(max_length=20, choices=TIPO_META, default='ACTIVIDAD')
+    tipo_meta = models.CharField(max_length=20, choices=TIPO_META, default='PRODUCTO')
     cantidad_meta_anual = models.DecimalField(max_digits=15, decimal_places=2, default=0)
 
     # Códigos numéricos (para cruce con otros reportes)
@@ -36,7 +42,7 @@ class Meta(models.Model):
     nombre_actividad = models.CharField(max_length=500, blank=True, default='')
     # Tipo y clasificación
     tipo_producto_proyecto = models.CharField(max_length=50, blank=True, default='')
-    tipo_actividad = models.CharField(max_length=50, blank=True, default='')
+    tipo_actividad = models.CharField(max_length=20, choices=TIPO_ACTIVIDAD, blank=True, default='')
     codigo_unidad_medida = models.CharField(max_length=10, blank=True, default='')
     nombre_unidad_medida = models.CharField(max_length=100, blank=True, default='')
     is_active = models.BooleanField(default=True)

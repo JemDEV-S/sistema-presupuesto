@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react';
 import {
   Card, CardContent, Typography, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TableSortLabel, Box,
-  LinearProgress, Chip, TablePagination,
+  LinearProgress, Chip, TablePagination, TextField, InputAdornment,
 } from '@mui/material';
+import { Search } from '@mui/icons-material';
 
 const SortableTable = ({
   title,
@@ -13,11 +14,14 @@ const SortableTable = ({
   paginated = false,
   rowsPerPageOptions = [10, 25, 50],
   defaultRowsPerPage = 10,
+  searchable = false,
+  searchPlaceholder = 'Buscar...',
 }) => {
   const [orderBy, setOrderBy] = useState(defaultSort.key || '');
   const [order, setOrder] = useState(defaultSort.direction || 'asc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleSort = (columnKey) => {
     const isAsc = orderBy === columnKey && order === 'asc';
@@ -25,9 +29,21 @@ const SortableTable = ({
     setOrderBy(columnKey);
   };
 
+  const filteredData = useMemo(() => {
+    if (!searchable || !searchTerm.trim()) return data;
+    const term = searchTerm.toLowerCase().trim();
+    return data.filter((row) =>
+      columns.some((col) => {
+        const val = row[col.key];
+        if (val == null) return false;
+        return String(val).toLowerCase().includes(term);
+      })
+    );
+  }, [data, searchTerm, searchable, columns]);
+
   const sortedData = useMemo(() => {
-    if (!orderBy) return data;
-    return [...data].sort((a, b) => {
+    if (!orderBy) return filteredData;
+    return [...filteredData].sort((a, b) => {
       const aVal = a[orderBy];
       const bVal = b[orderBy];
       if (aVal == null) return 1;
@@ -37,7 +53,7 @@ const SortableTable = ({
         : aVal - bVal;
       return order === 'asc' ? cmp : -cmp;
     });
-  }, [data, orderBy, order]);
+  }, [filteredData, orderBy, order]);
 
   const displayedData = paginated
     ? sortedData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
@@ -46,7 +62,29 @@ const SortableTable = ({
   return (
     <Card>
       <CardContent>
-        {title && <Typography variant="h6" gutterBottom>{title}</Typography>}
+        {(title || searchable) && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+            {title && <Typography variant="h6">{title}</Typography>}
+            {searchable && (
+              <TextField
+                size="small"
+                placeholder={searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+                sx={{ minWidth: 250 }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            )}
+          </Box>
+        )}
         <TableContainer>
           <Table size="small">
             <TableHead>

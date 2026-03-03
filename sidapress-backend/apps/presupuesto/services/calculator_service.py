@@ -190,29 +190,64 @@ def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim', allowed_unidad_id
         meta_codigo=F('meta__codigo'),
         meta_nombre=F('meta__nombre'),
         unidad_nombre=F('meta__unidad_organica__nombre'),
+        tipo_meta=F('meta__tipo_meta'),
+        finalidad=F('meta__finalidad'),
+        nombre_programa_pptal=F('meta__nombre_programa_pptal'),
+        nombre_producto_proyecto=F('meta__nombre_producto_proyecto'),
+        nombre_actividad=F('meta__nombre_actividad'),
+        sec_func=F('meta__sec_func'),
+        codigo_funcion=F('meta__codigo_funcion'),
+        codigo_division_fn=F('meta__codigo_division_fn'),
+        codigo_grupo_fn=F('meta__codigo_grupo_fn'),
     ).annotate(
         total_pim=Sum('pim'),
+        total_pia=Sum('pia'),
         total_certificado=Sum('certificado'),
     )
 
     resultado = []
     for ej in ejecuciones:
         pim = ej['total_pim'] or Decimal('0')
+        pia = ej['total_pia'] or Decimal('0')
+        certificado = ej['total_certificado'] or Decimal('0')
         mensual_qs = EjecucionMensual.objects.filter(
             ejecucion__meta_id=ej['meta_id'],
             ejecucion__anio_fiscal_id=anio_fiscal_id,
         )
         if allowed_unidad_ids is not None:
             mensual_qs = mensual_qs.filter(ejecucion__meta__unidad_organica_id__in=allowed_unidad_ids)
-        devengado = mensual_qs.aggregate(total=Sum('devengado'))['total'] or Decimal('0')
+        mensual_totales = mensual_qs.aggregate(
+            devengado=Sum('devengado'),
+            girado=Sum('girado'),
+        )
+        devengado = mensual_totales['devengado'] or Decimal('0')
+        girado = mensual_totales['girado'] or Decimal('0')
+
+        # Build cadena funcional: función.división.grupo
+        func_parts = [
+            ej['codigo_funcion'] or '',
+            ej['codigo_division_fn'] or '',
+            ej['codigo_grupo_fn'] or '',
+        ]
+        cadena_funcional = '.'.join(p for p in func_parts if p)
 
         avance = float(devengado / pim * 100) if pim > 0 else 0
         resultado.append({
             'meta_codigo': ej['meta_codigo'],
             'meta_nombre': ej['meta_nombre'],
             'unidad_nombre': ej['unidad_nombre'],
+            'tipo_meta': ej['tipo_meta'],
+            'finalidad': ej['finalidad'] or '',
+            'nombre_programa_pptal': ej['nombre_programa_pptal'] or '',
+            'nombre_producto_proyecto': ej['nombre_producto_proyecto'] or '',
+            'nombre_actividad': ej['nombre_actividad'] or '',
+            'sec_func': ej['sec_func'],
+            'cadena_funcional': cadena_funcional,
+            'total_pia': float(pia),
             'total_pim': float(pim),
+            'total_certificado': float(certificado),
             'total_devengado': float(devengado),
+            'total_girado': float(girado),
             'avance_pct': round(avance, 2),
         })
 
@@ -239,6 +274,8 @@ def _apply_ejecucion_filters(qs, filters):
         qs = qs.filter(rubro_id=filters['rubro_id'])
     if filters.get('tipo_meta'):
         qs = qs.filter(meta__tipo_meta=filters['tipo_meta'])
+    if filters.get('tipo_actividad'):
+        qs = qs.filter(meta__tipo_actividad=filters['tipo_actividad'])
     if filters.get('generica'):
         qs = qs.filter(clasificador_gasto__generica=filters['generica'])
     return qs
@@ -257,6 +294,8 @@ def _apply_mensual_filters(qs, filters):
         qs = qs.filter(ejecucion__rubro_id=filters['rubro_id'])
     if filters.get('tipo_meta'):
         qs = qs.filter(ejecucion__meta__tipo_meta=filters['tipo_meta'])
+    if filters.get('tipo_actividad'):
+        qs = qs.filter(ejecucion__meta__tipo_actividad=filters['tipo_actividad'])
     if filters.get('generica'):
         qs = qs.filter(ejecucion__clasificador_gasto__generica=filters['generica'])
     return qs
@@ -326,6 +365,13 @@ def get_metas_por_unidad(anio_fiscal_id, unidad_codigo):
         meta_codigo=F('meta__codigo'),
         meta_nombre=F('meta__nombre'),
         tipo_meta=F('meta__tipo_meta'),
+        finalidad=F('meta__finalidad'),
+        nombre_programa_pptal=F('meta__nombre_programa_pptal'),
+        nombre_producto_proyecto=F('meta__nombre_producto_proyecto'),
+        sec_func=F('meta__sec_func'),
+        codigo_funcion=F('meta__codigo_funcion'),
+        codigo_division_fn=F('meta__codigo_division_fn'),
+        codigo_grupo_fn=F('meta__codigo_grupo_fn'),
     ).annotate(
         total_pia=Sum('pia'),
         total_pim=Sum('pim'),
@@ -343,6 +389,14 @@ def get_metas_por_unidad(anio_fiscal_id, unidad_codigo):
             total_girado=Sum('girado'),
         )
 
+        # Build cadena funcional: función.división.grupo
+        func_parts = [
+            ej['codigo_funcion'] or '',
+            ej['codigo_division_fn'] or '',
+            ej['codigo_grupo_fn'] or '',
+        ]
+        cadena_funcional = '.'.join(p for p in func_parts if p)
+
         dev = devengado['total_devengado'] or Decimal('0')
         avance = float(dev / pim * 100) if pim > 0 else 0
         resultado.append({
@@ -350,6 +404,11 @@ def get_metas_por_unidad(anio_fiscal_id, unidad_codigo):
             'meta_codigo': ej['meta_codigo'],
             'meta_nombre': ej['meta_nombre'],
             'tipo_meta': ej['tipo_meta'],
+            'finalidad': ej['finalidad'] or '',
+            'nombre_programa_pptal': ej['nombre_programa_pptal'] or '',
+            'nombre_producto_proyecto': ej['nombre_producto_proyecto'] or '',
+            'sec_func': ej['sec_func'],
+            'cadena_funcional': cadena_funcional,
             'total_pia': float(ej['total_pia'] or 0),
             'total_pim': float(pim),
             'total_certificado': float(ej['total_certificado'] or 0),
@@ -448,7 +507,7 @@ def get_ejecucion_por_rubro(anio_fiscal_id, filters=None):
 
 
 def get_ejecucion_por_tipo_meta(anio_fiscal_id, filters=None):
-    """Ejecución agrupada por tipo de meta (ACTIVIDAD vs PROYECTO)."""
+    """Ejecución agrupada por tipo de meta (PRODUCTO vs PROYECTO)."""
     filters = filters or {}
     ejecuciones = EjecucionPresupuestal.objects.filter(anio_fiscal_id=anio_fiscal_id)
     ejecuciones = _apply_ejecucion_filters(ejecuciones, filters)

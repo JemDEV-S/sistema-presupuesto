@@ -45,20 +45,15 @@ export const selectIsGlobalAccess = (state) => {
   return state.user.is_superuser || state.user.allowed_unidades === null;
 };
 
+// Selector que retorna la referencia directa del store (estable)
 export const selectAllowedUnidades = (state) => {
   if (!state.user || state.user.allowed_unidades === null) return null;
-  return state.user.allowed_unidades || [];
-};
-
-export const selectAllowedUnidadCodigos = (state) => {
-  const unidades = selectAllowedUnidades(state);
-  if (unidades === null) return null;
-  return unidades.map((u) => u.codigo);
+  return state.user.allowed_unidades;
 };
 
 export const selectDefaultUnidadCodigo = (state) => {
-  const unidades = selectAllowedUnidades(state);
-  if (unidades === null) return null;
+  const unidades = state.user?.allowed_unidades;
+  if (!unidades || unidades === null) return null;
   if (unidades.length === 1) return unidades[0].codigo;
   return null;
 };

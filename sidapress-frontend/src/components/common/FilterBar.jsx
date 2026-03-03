@@ -1,6 +1,6 @@
 import {
-  Box, FormControl, InputLabel, Select, MenuItem, Card, CardContent,
-  Typography, IconButton, Collapse, Tooltip,
+  Box, Card, CardContent, Typography, IconButton, Collapse, Tooltip,
+  TextField, Autocomplete,
 } from '@mui/material';
 import { FilterList, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { useState } from 'react';
@@ -26,27 +26,31 @@ const FilterBar = ({ filters, values, onChange, collapsible = false }) => {
         </Box>
         <Collapse in={expanded}>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 1.5 }}>
-            {filters.map((filter) => (
-              <FormControl key={filter.name} size="small" sx={{ minWidth: filter.width || 150 }}>
-                <InputLabel>{filter.label}</InputLabel>
-                <Select
-                  value={values[filter.name] ?? ''}
-                  label={filter.label}
-                  onChange={(e) => onChange(filter.name, e.target.value)}
-                >
-                  {filter.showAll !== false && (
-                    <MenuItem value="">
-                      <em>Todos</em>
-                    </MenuItem>
+            {filters.map((filter) => {
+              const allOptions = [
+                ...(filter.showAll !== false ? [{ value: '', label: 'Todos' }] : []),
+                ...filter.options,
+              ];
+              const selectedOption = allOptions.find((opt) => opt.value === (values[filter.name] ?? '')) || null;
+
+              return (
+                <Autocomplete
+                  key={filter.name}
+                  size="small"
+                  sx={{ minWidth: filter.width || 150 }}
+                  options={allOptions}
+                  getOptionLabel={(opt) => opt.label || ''}
+                  isOptionEqualToValue={(opt, val) => opt.value === val.value}
+                  value={selectedOption}
+                  onChange={(_, newVal) => onChange(filter.name, newVal?.value ?? '')}
+                  renderInput={(params) => (
+                    <TextField {...params} label={filter.label} />
                   )}
-                  {filter.options.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            ))}
+                  disableClearable={filter.showAll !== false}
+                  noOptionsText="Sin resultados"
+                />
+              );
+            })}
           </Box>
         </Collapse>
       </CardContent>

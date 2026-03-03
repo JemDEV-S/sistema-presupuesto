@@ -20,7 +20,12 @@ class MetaSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'anio_fiscal', 'anio', 'unidad_organica', 'unidad_nombre',
             'codigo', 'nombre', 'finalidad', 'tipo_meta',
-            'cantidad_meta_anual', 'is_active',
+            'cantidad_meta_anual', 'sec_func',
+            'codigo_programa_pptal', 'codigo_producto_proyecto',
+            'codigo_actividad', 'codigo_funcion',
+            'nombre_programa_pptal', 'nombre_producto_proyecto',
+            'nombre_actividad', 'tipo_producto_proyecto', 'tipo_actividad',
+            'is_active',
         ]
 
 

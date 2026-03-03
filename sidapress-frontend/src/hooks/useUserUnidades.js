@@ -1,16 +1,20 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import useAuthStore, {
   selectIsGlobalAccess,
   selectAllowedUnidades,
-  selectAllowedUnidadCodigos,
   selectDefaultUnidadCodigo,
 } from '../store/authStore';
 
 export const useUserUnidades = () => {
   const isGlobalAccess = useAuthStore(selectIsGlobalAccess);
   const allowedUnidades = useAuthStore(selectAllowedUnidades);
-  const allowedCodigos = useAuthStore(selectAllowedUnidadCodigos);
   const defaultCodigo = useAuthStore(selectDefaultUnidadCodigo);
+
+  // Derivar códigos con useMemo para mantener referencia estable
+  const allowedCodigos = useMemo(() => {
+    if (allowedUnidades === null) return null;
+    return allowedUnidades.map((u) => u.codigo);
+  }, [allowedUnidades]);
 
   const isUnidadAllowed = useCallback(
     (codigo) => {

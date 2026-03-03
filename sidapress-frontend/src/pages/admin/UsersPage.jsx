@@ -4,16 +4,18 @@ import {
   TableHead, TableRow, TablePagination, Button, IconButton, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   FormControl, InputLabel, Select, MenuItem, Alert, Snackbar,
-  Tooltip, InputAdornment,
+  Tooltip, InputAdornment, FormControlLabel, Checkbox,
 } from '@mui/material';
 import {
   Add, Edit, Delete, PersonAdd, Search, Shield,
 } from '@mui/icons-material';
 import usuariosService from '../../services/usuarios.service';
+import catalogosService from '../../services/catalogos.service';
 
 const UsersPage = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [unidades, setUnidades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -31,7 +33,7 @@ const UsersPage = () => {
     username: '', email: '', first_name: '', last_name: '',
     dni: '', telefono: '', cargo: '', password: '',
   });
-  const [rolFormData, setRolFormData] = useState({ rol_id: '', incluir_hijos: false });
+  const [rolFormData, setRolFormData] = useState({ rol_id: '', unidad_organica_id: '', incluir_hijos: false });
 
   // Notifications
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -63,10 +65,20 @@ const UsersPage = () => {
     }
   }, []);
 
+  const fetchUnidades = useCallback(async () => {
+    try {
+      const res = await catalogosService.getUnidades({ is_active: true });
+      setUnidades(res.data.results || res.data);
+    } catch (err) {
+      console.error('Error cargando unidades:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsuarios();
     fetchRoles();
-  }, [fetchUsuarios, fetchRoles]);
+    fetchUnidades();
+  }, [fetchUsuarios, fetchRoles, fetchUnidades]);
 
   const handleOpenCreate = () => {
     setEditingUser(null);
@@ -123,13 +135,28 @@ const UsersPage = () => {
 
   const handleOpenRolDialog = (user) => {
     setSelectedUser(user);
-    setRolFormData({ rol_id: '', incluir_hijos: false });
+    setRolFormData({ rol_id: '', unidad_organica_id: '', incluir_hijos: false });
     setOpenRolDialog(true);
+  };
+
+  const handleQuitarRol = async (userId, usuarioRolId) => {
+    try {
+      await usuariosService.quitarRol(userId, { usuario_rol_id: usuarioRolId });
+      setSnackbar({ open: true, message: 'Rol removido correctamente', severity: 'success' });
+      fetchUsuarios();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Error al quitar rol';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
+    }
   };
 
   const handleAsignarRol = async () => {
     try {
-      await usuariosService.asignarRol(selectedUser.id, rolFormData);
+      const data = { rol_id: rolFormData.rol_id, incluir_hijos: rolFormData.incluir_hijos };
+      if (rolFormData.unidad_organica_id) {
+        data.unidad_organica_id = rolFormData.unidad_organica_id;
+      }
+      await usuariosService.asignarRol(selectedUser.id, data);
       setSnackbar({ open: true, message: 'Rol asignado correctamente', severity: 'success' });
       setOpenRolDialog(false);
       fetchUsuarios();
@@ -196,9 +223,18 @@ const UsersPage = () => {
                   <TableCell>{user.cargo || '-'}</TableCell>
                   <TableCell>
                     {user.roles && user.roles.length > 0
-                      ? user.roles.map((r, i) => (
-                          <Chip key={i} label={r.rol_nombre || r.nombre || r}
-                            size="small" color="primary" variant="outlined" sx={{ mr: 0.5, mb: 0.5 }} />
+                      ? user.roles.map((r) => (
+                          <Chip
+                            key={r.id}
+                            label={r.unidad_nombre
+                              ? `${r.rol_nombre} - ${r.unidad_nombre}`
+                              : `${r.rol_nombre || r.nombre || r} (Global)`}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            onDelete={() => handleQuitarRol(user.id, r.id)}
+                            sx={{ mr: 0.5, mb: 0.5 }}
+                          />
                         ))
                       : <Chip label="Sin rol" size="small" color="default" />
                     }
@@ -278,7 +314,7 @@ const UsersPage = () => {
       </Dialog>
 
       {/* Dialog Asignar Rol */}
-      <Dialog open={openRolDialog} onClose={() => setOpenRolDialog(false)} maxWidth="xs" fullWidth>
+      <Dialog open={openRolDialog} onClose={() => setOpenRolDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Asignar Rol a {selectedUser?.username}</DialogTitle>
         <DialogContent>
           <FormControl fullWidth sx={{ mt: 1 }}>
@@ -290,6 +326,52 @@ const UsersPage = () => {
               ))}
             </Select>
           </FormControl>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Unidad Orgánica</InputLabel>
+            <Select
+              value={rolFormData.unidad_organica_id}
+              label="Unidad Orgánica"
+              onChange={(e) => setRolFormData({ ...rolFormData, unidad_organica_id: e.target.value })}
+            >
+              <MenuItem value="">
+                <em>Sin unidad (Acceso global)</em>
+              </MenuItem>
+              {unidades.map((u) => (
+                <MenuItem key={u.id} value={u.id}>{u.codigo} - {u.nombre}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {rolFormData.unidad_organica_id && (
+            <FormControlLabel
+              sx={{ mt: 1 }}
+              control={
+                <Checkbox
+                  checked={rolFormData.incluir_hijos}
+                  onChange={(e) => setRolFormData({ ...rolFormData, incluir_hijos: e.target.checked })}
+                />
+              }
+              label="Incluir sub-unidades"
+            />
+          )}
+          {selectedUser?.roles?.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="caption" color="text.secondary">Roles actuales:</Typography>
+              <Box sx={{ mt: 0.5 }}>
+                {selectedUser.roles.map((r) => (
+                  <Chip
+                    key={r.id}
+                    label={r.unidad_nombre
+                      ? `${r.rol_nombre} - ${r.unidad_nombre}`
+                      : `${r.rol_nombre} (Global)`}
+                    size="small"
+                    variant="outlined"
+                    onDelete={() => { handleQuitarRol(selectedUser.id, r.id); setSelectedUser((prev) => ({ ...prev, roles: prev.roles.filter((rol) => rol.id !== r.id) })); }}
+                    sx={{ mr: 0.5, mb: 0.5 }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenRolDialog(false)}>Cancelar</Button>

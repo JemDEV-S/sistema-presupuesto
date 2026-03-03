@@ -3,13 +3,13 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recha
 import { formatCurrency } from '../../utils/formatters';
 
 const COLORS = {
-  ACTIVIDAD: '#1565c0',
+  PRODUCTO: '#1565c0',
   PROYECTO: '#f57c00',
 };
 
-const TipoMetaPieChart = ({ data, title = 'Distribución por Tipo de Meta', metric = 'total_pim' }) => {
+const TipoMetaPieChart = ({ data, title = 'Distribución por Tipo (Prod/Proy)', metric = 'total_pim' }) => {
   const chartData = data?.map((item) => ({
-    name: item.tipo_meta === 'ACTIVIDAD' ? 'Actividades' : 'Proyectos',
+    name: item.tipo_meta === 'PRODUCTO' ? 'Productos' : 'Proyectos',
     value: parseFloat(item[metric]) || 0,
     metas: item.total_metas,
     tipo: item.tipo_meta,

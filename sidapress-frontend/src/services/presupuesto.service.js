@@ -41,9 +41,14 @@ const presupuestoService = {
   getTendenciaFiltrada: (anio, filters = {}) =>
     api.get('/presupuesto/dashboard/tendencia-filtrada/', { params: { anio, ...filters } }),
 
-  // CRUD
+  // CRUD Ejecuciones
   getEjecuciones: (params) => api.get('/presupuesto/ejecuciones/', { params }),
+
+  // CRUD Metas
   getMetas: (params) => api.get('/presupuesto/metas/', { params }),
+  createMeta: (data) => api.post('/presupuesto/metas/', data),
+  updateMeta: (id, data) => api.patch(`/presupuesto/metas/${id}/`, data),
+  deleteMeta: (id) => api.delete(`/presupuesto/metas/${id}/`),
 };
 
 export default presupuestoService;

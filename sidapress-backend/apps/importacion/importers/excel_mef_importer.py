@@ -221,6 +221,18 @@ def _normalize_name(value):
     return ' '.join(str(value).strip().upper().split())
 
 
+def _normalize_tipo_actividad(raw):
+    """Mapea valor Excel tipo_act_obra_ac a choice del modelo Meta.TIPO_ACTIVIDAD."""
+    if not raw:
+        return ''
+    val = raw.strip().upper()
+    if 'OBRA' in val:
+        return 'OBRA'
+    if 'ACCION' in val or 'ACCIÓN' in val or 'INVERSIÓN' in val or 'INVERSION' in val:
+        return 'ACCION_INVERSION'
+    return 'ACTIVIDAD'
+
+
 # =============================================================================
 # Procesadores de hojas (carga inicial .xlsx)
 # =============================================================================
@@ -541,8 +553,8 @@ def _process_sf_sheet(wb, anio_fiscal):
             # Determinar nombre de la meta
             nombre_meta = act_nom or prod_nom or programa_pptal_raw or f'Meta {meta_codigo}'
 
-            # Determinar tipo
-            tipo_meta = 'PROYECTO' if tipo_raw and tipo_raw.upper() == 'PROYECTO' else 'ACTIVIDAD'
+            # Determinar tipo (tipo_raw viene de la columna tipo_prod_proy: PRODUCTO o PROYECTO)
+            tipo_meta = 'PROYECTO' if tipo_raw and tipo_raw.upper() == 'PROYECTO' else 'PRODUCTO'
             tipo_prod_proy = tipo_raw if tipo_raw else ''
 
             meta_obj, _ = Meta.objects.update_or_create(
@@ -569,7 +581,7 @@ def _process_sf_sheet(wb, anio_fiscal):
                     'nombre_actividad': act_nom[:500],
                     # Tipos y clasificación
                     'tipo_producto_proyecto': tipo_prod_proy[:50],
-                    'tipo_actividad': tipo_raw[:50] if tipo_raw else '',
+                    'tipo_actividad': '',  # Se actualizará desde SheetGasto con tipo_act_obra_ac
                     'codigo_unidad_medida': '',
                     'nombre_unidad_medida': '',
                 }
@@ -851,16 +863,21 @@ def _process_sheetgasto(rows, col_map, is_xlsx, anio_fiscal, importacion, user,
 
             meta = metas_cache[meta_key]
 
-            # Actualizar avance físico y cant_meta_anual desde SheetGasto (solo primera vez por meta)
+            # Actualizar avance físico, cant_meta_anual y tipo_actividad desde SheetGasto (solo primera vez por meta)
             if is_initial and meta_key not in avance_updated:
                 avance_updated.add(meta_key)
-                # Actualizar cant_meta_anual y unidad_medida en la meta
+                # Actualizar cant_meta_anual, unidad_medida y tipo_actividad en la meta
+                update_fields = {}
                 if data['cant_meta_anual'] > 0 or data['unidad_medida_cod']:
-                    Meta.objects.filter(pk=meta.pk).update(
-                        cantidad_meta_anual=data['cant_meta_anual'],
-                        codigo_unidad_medida=data['unidad_medida_cod'][:10],
-                        nombre_unidad_medida=data['unidad_medida_nom'][:100],
-                    )
+                    update_fields['cantidad_meta_anual'] = data['cant_meta_anual']
+                    update_fields['codigo_unidad_medida'] = data['unidad_medida_cod'][:10]
+                    update_fields['nombre_unidad_medida'] = data['unidad_medida_nom'][:100]
+                # tipo_actividad viene de tipo_act_obra_ac (ACTIVIDAD/OBRA/ACCIÓN DE INVERSIÓN)
+                tipo_act = _normalize_tipo_actividad(data.get('tipo_act_obra_ac_nom', ''))
+                if tipo_act:
+                    update_fields['tipo_actividad'] = tipo_act
+                if update_fields:
+                    Meta.objects.filter(pk=meta.pk).update(**update_fields)
                 # Actualizar AvanceFisico
                 AvanceFisico.objects.filter(meta=meta).update(
                     cantidad_meta_semestral=data['cant_meta_sem'],

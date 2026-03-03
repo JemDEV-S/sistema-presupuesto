@@ -58,7 +58,7 @@ const Navbar = ({ onToggleSidebar }) => {
         </IconButton>
 
         <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
-          SIDAPRESS
+          Sistema de Consulta Presupuestal
         </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

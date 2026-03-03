@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   Box, Typography, Grid, FormControl, InputLabel, Select, MenuItem,
-  CircularProgress, Alert, Card, CardContent,
+  CircularProgress, Card, CardContent, Autocomplete, TextField, Chip,
 } from '@mui/material';
 import {
   AccountBalance, TrendingUp, Receipt, Savings,
@@ -15,8 +15,8 @@ import {
 import { useUserUnidades } from '../../hooks/useUserUnidades';
 import KPICard from '../../components/widgets/KPICard';
 import GaugeChart from '../../components/charts/GaugeChart';
-import TrendLineChart from '../../components/charts/TrendLineChart';
-import ComparativoBarChart from '../../components/charts/ComparativoBarChart';
+import ChartWrapper from '../../components/charts/ChartWrapper';
+import ResumenPresupuestalChart from '../../components/charts/ResumenPresupuestalChart';
 import SortableTable, { ProgressCell } from '../../components/tables/SortableTable';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 
@@ -26,10 +26,8 @@ const UnidadDashboard = () => {
   const [anio, setAnio] = useState(2026);
   const [unidadId, setUnidadId] = useState(defaultCodigo || '');
 
-  // Get all units for the selector
   const { data: unidades } = usePorUnidad(anio);
 
-  // Filter unit options based on user's allowed units
   const unidadOptions = useMemo(() => {
     const allOptions = (unidades || []).map((u) => ({
       value: u.unidad_codigo,
@@ -38,7 +36,6 @@ const UnidadDashboard = () => {
     return filterUnidadOptions(allOptions);
   }, [unidades, filterUnidadOptions]);
 
-  // Auto-select if only one unit available
   useEffect(() => {
     if (!unidadId && unidadOptions.length === 1) {
       setUnidadId(unidadOptions[0].value);
@@ -57,27 +54,62 @@ const UnidadDashboard = () => {
 
   const clasificadorChartData = useMemo(() => {
     return (clasificadores || []).map((c) => ({
-      name: c.nombre_generica?.length > 25 ? c.nombre_generica.substring(0, 25) + '...' : c.nombre_generica,
+      name: c.nombre_generica,
       PIM: c.total_pim,
       Certificado: c.total_certificado,
       Devengado: c.total_devengado,
     }));
   }, [clasificadores]);
 
+  const tendenciaChartData = useMemo(() => {
+    return (tendencia || []).map((item) => ({
+      name: item.mes_nombre,
+      'Devengado Acum.': item.acum_devengado,
+      'Compromiso Acum.': item.acum_compromiso,
+      'Girado Acum.': item.acum_girado,
+    }));
+  }, [tendencia]);
+
   const metasColumns = [
     { key: 'meta_codigo', label: 'Código', sortable: true },
     {
       key: 'meta_nombre', label: 'Meta', sortable: true,
-      render: (val) => (
-        <Typography variant="body2" sx={{ maxWidth: 300 }}>
-          {val?.length > 60 ? val.substring(0, 60) + '...' : val}
-        </Typography>
+      render: (val, row) => (
+        <Box>
+          <Typography variant="body2">{val}</Typography>
+          {row?.finalidad && (
+            <Typography variant="caption" color="text.secondary" display="block">
+              {row.finalidad}
+            </Typography>
+          )}
+        </Box>
       ),
     },
-    { key: 'tipo_meta', label: 'Tipo', sortable: true },
+    {
+      key: 'tipo_meta', label: 'Tipo', sortable: true,
+      render: (val) => (
+        <Chip
+          label={val === 'PROYECTO' ? 'Proyecto' : 'Actividad'}
+          size="small"
+          color={val === 'PROYECTO' ? 'warning' : 'info'}
+          variant="outlined"
+          sx={{ fontSize: 11 }}
+        />
+      ),
+    },
+    {
+      key: 'cadena_funcional', label: 'Cad. Funcional', sortable: true,
+      render: (val) => <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>{val || '-'}</Typography>,
+    },
+    {
+      key: 'nombre_programa_pptal', label: 'Prog. Presupuestal', sortable: true,
+      render: (val) => <Typography variant="caption">{val || '-'}</Typography>,
+    },
+    { key: 'total_pia', label: 'PIA', align: 'right', sortable: true, format: formatCurrency },
     { key: 'total_pim', label: 'PIM', align: 'right', sortable: true, format: formatCurrency },
     { key: 'total_certificado', label: 'Certificado', align: 'right', sortable: true, format: formatCurrency },
     { key: 'total_devengado', label: 'Devengado', align: 'right', sortable: true, format: formatCurrency },
+    { key: 'total_girado', label: 'Girado', align: 'right', sortable: true, format: formatCurrency },
     {
       key: 'avance_pct', label: 'Avance', align: 'center', sortable: true,
       headerSx: { minWidth: 160 },
@@ -106,21 +138,17 @@ const UnidadDashboard = () => {
               <MenuItem value={2025}>2025</MenuItem>
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 280 }}>
-            <InputLabel>Unidad Orgánica</InputLabel>
-            <Select
-              value={unidadId}
-              label="Unidad Orgánica"
-              onChange={(e) => setUnidadId(e.target.value)}
-            >
-              {isGlobalAccess && <MenuItem value=""><em>Seleccione una unidad</em></MenuItem>}
-              {unidadOptions.map((u) => (
-                <MenuItem key={u.value} value={u.value}>
-                  {u.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Autocomplete
+            size="small"
+            sx={{ minWidth: 320 }}
+            options={isGlobalAccess ? [{ value: '', label: 'Seleccione una unidad' }, ...unidadOptions] : unidadOptions}
+            getOptionLabel={(opt) => opt.label || ''}
+            isOptionEqualToValue={(opt, val) => opt.value === val.value}
+            value={unidadOptions.find((u) => u.value === unidadId) || null}
+            onChange={(_, newVal) => setUnidadId(newVal?.value ?? '')}
+            renderInput={(params) => <TextField {...params} label="Unidad Orgánica" />}
+            noOptionsText="Sin resultados"
+          />
         </Box>
       </Box>
 
@@ -161,6 +189,13 @@ const UnidadDashboard = () => {
             </Grid>
           </Grid>
 
+          {/* Resumen Presupuestal */}
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid size={12}>
+              <ResumenPresupuestalChart resumen={resumen} />
+            </Grid>
+          </Grid>
+
           {/* Gauges */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid size={{ xs: 6, md: 3 }}>
@@ -180,13 +215,33 @@ const UnidadDashboard = () => {
           {/* Charts */}
           <Grid container spacing={3} sx={{ mb: 3 }}>
             <Grid size={{ xs: 12, lg: 7 }}>
-              <TrendLineChart data={tendencia || []} />
+              <ChartWrapper
+                title="Tendencia de Ejecución Mensual"
+                data={tendenciaChartData}
+                dataKeys={[
+                  { key: 'Devengado Acum.', label: 'Devengado Acum.', color: '#1565c0', defaultVisible: true },
+                  { key: 'Compromiso Acum.', label: 'Compromiso Acum.', color: '#f57c00', defaultVisible: true },
+                  { key: 'Girado Acum.', label: 'Girado Acum.', color: '#388e3c', defaultVisible: true },
+                ]}
+                defaultChartType="line"
+                allowedChartTypes={['line', 'area', 'bar']}
+                xAxisAngle={0}
+                xAxisHeight={30}
+                height={300}
+              />
             </Grid>
             <Grid size={{ xs: 12, lg: 5 }}>
-              <ComparativoBarChart
-                data={clasificadorChartData}
+              <ChartWrapper
                 title="Ejecución por Clasificador"
-                layout="vertical"
+                data={clasificadorChartData}
+                dataKeys={[
+                  { key: 'PIM', label: 'PIM', color: '#1565c0', defaultVisible: true },
+                  { key: 'Certificado', label: 'Certificado', color: '#7b1fa2', defaultVisible: true },
+                  { key: 'Devengado', label: 'Devengado', color: '#00897b', defaultVisible: true },
+                ]}
+                defaultChartType="bar"
+                allowedChartTypes={['bar', 'line', 'area', 'pie']}
+                height={300}
               />
             </Grid>
           </Grid>
@@ -198,6 +253,8 @@ const UnidadDashboard = () => {
             data={metas || []}
             defaultSort={{ key: 'total_pim', direction: 'desc' }}
             paginated
+            searchable
+            searchPlaceholder="Buscar en metas..."
           />
         </>
       )}

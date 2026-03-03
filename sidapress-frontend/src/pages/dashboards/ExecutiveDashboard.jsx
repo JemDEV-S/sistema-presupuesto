@@ -9,15 +9,13 @@ import {
 } from '@mui/icons-material';
 import useAuthStore from '../../store/authStore';
 import {
-  useResumen, useTendencia, usePorFuente, usePorGenerica, usePorUnidad, useTopMetas,
+  useResumen, useTendencia, usePorFuente, usePorGenerica, usePorUnidad, useTopMetas, usePorRubro,
 } from '../../hooks/useBudget';
 import { useUserUnidades } from '../../hooks/useUserUnidades';
 import KPICard from '../../components/widgets/KPICard';
 import GaugeChart from '../../components/charts/GaugeChart';
-import TrendLineChart from '../../components/charts/TrendLineChart';
-import FuentePieChart from '../../components/charts/FuentePieChart';
-import GenericaBarChart from '../../components/charts/GenericaBarChart';
-import UnidadBarChart from '../../components/charts/UnidadBarChart';
+import ChartWrapper from '../../components/charts/ChartWrapper';
+import ResumenPresupuestalChart from '../../components/charts/ResumenPresupuestalChart';
 import TopMetasTable from '../../components/tables/TopMetasTable';
 import FilterBar from '../../components/common/FilterBar';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
@@ -45,6 +43,7 @@ const ExecutiveDashboard = () => {
   const { data: porGenerica } = usePorGenerica(anio, activeFilters);
   const { data: porUnidad } = usePorUnidad(anio);
   const { data: topMetas } = useTopMetas(anio, 10, 'mayor_pim', activeFilters);
+  const { data: porRubro } = usePorRubro(anio, activeFilters);
 
   const handleFilterChange = (name, value) => {
     setFilterValues((prev) => ({ ...prev, [name]: value }));
@@ -70,6 +69,49 @@ const ExecutiveDashboard = () => {
     { name: 'fuente', label: 'Fuente Financiamiento', options: fuenteOptions, width: 220 },
     { name: 'unidad', label: 'Unidad Orgánica', options: unidadOptions, width: 220 },
   ];
+
+  // Prepared chart data
+  const genericaChartData = useMemo(() => {
+    return (porGenerica || []).map((item) => ({
+      name: item.generica_nombre?.length > 25
+        ? item.generica_nombre.substring(0, 25) + '...'
+        : item.generica_nombre,
+      PIM: parseFloat(item.total_pim) || 0,
+      Devengado: parseFloat(item.total_devengado) || 0,
+      Certificado: parseFloat(item.total_certificado) || 0,
+      Girado: parseFloat(item.total_girado) || 0,
+    }));
+  }, [porGenerica]);
+
+  const unidadChartData = useMemo(() => {
+    return (porUnidad || []).map((item) => ({
+      name: item.unidad_nombre?.length > 20
+        ? item.unidad_nombre.substring(0, 20) + '...'
+        : item.unidad_nombre,
+      PIM: parseFloat(item.total_pim) || 0,
+      Devengado: parseFloat(item.total_devengado) || 0,
+      Certificado: parseFloat(item.total_certificado) || 0,
+      Girado: parseFloat(item.total_girado) || 0,
+    }));
+  }, [porUnidad]);
+
+  const tendenciaChartData = useMemo(() => {
+    return (tendencia || []).map((item) => ({
+      name: item.mes_nombre,
+      'Devengado Acum.': item.acum_devengado,
+      'Compromiso Acum.': item.acum_compromiso,
+      'Girado Acum.': item.acum_girado,
+    }));
+  }, [tendencia]);
+
+  const rubroChartData = useMemo(() => {
+    return (porRubro || []).map((item) => ({
+      name: item.rubro_nombre,
+      PIM: parseFloat(item.total_pim) || 0,
+      Certificado: parseFloat(item.total_certificado) || 0,
+      Devengado: parseFloat(item.total_devengado) || 0,
+    }));
+  }, [porRubro]);
 
   // Calculate month-based expected execution
   const mesActual = new Date().getMonth() + 1;
@@ -179,6 +221,13 @@ const ExecutiveDashboard = () => {
         </Grid>
       </Grid>
 
+      {/* Gráfico Resumen de Datos Principales */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid size={12}>
+          <ResumenPresupuestalChart resumen={resumen} />
+        </Grid>
+      </Grid>
+
       {/* Gauge Charts - Semáforos */}
       <Typography variant="h6" sx={{ mb: 1.5 }}>
         <Speed sx={{ verticalAlign: 'middle', mr: 1 }} />
@@ -254,23 +303,71 @@ const ExecutiveDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Charts Row 1: Trend + Pie */}
+      {/* Charts Row 1: Trend + Rubros */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, lg: 8 }}>
-          <TrendLineChart data={tendencia || []} />
+          <ChartWrapper
+            title="Tendencia de Ejecución Mensual"
+            data={tendenciaChartData}
+            dataKeys={[
+              { key: 'Devengado Acum.', label: 'Devengado Acum.', color: '#1565c0', defaultVisible: true },
+              { key: 'Compromiso Acum.', label: 'Compromiso Acum.', color: '#f57c00', defaultVisible: true },
+              { key: 'Girado Acum.', label: 'Girado Acum.', color: '#388e3c', defaultVisible: true },
+            ]}
+            defaultChartType="line"
+            allowedChartTypes={['line', 'area', 'bar']}
+            xAxisAngle={0}
+            xAxisHeight={30}
+            height={300}
+          />
         </Grid>
         <Grid size={{ xs: 12, lg: 4 }}>
-          <FuentePieChart data={porFuente || []} />
+          <ChartWrapper
+            title="Distribución por Rubro"
+            data={rubroChartData}
+            dataKeys={[
+              { key: 'PIM', label: 'PIM', color: '#1565c0', defaultVisible: true },
+              { key: 'Certificado', label: 'Certificado', color: '#7b1fa2', defaultVisible: false },
+              { key: 'Devengado', label: 'Devengado', color: '#00897b', defaultVisible: false },
+            ]}
+            defaultChartType="pie"
+            allowedChartTypes={['pie', 'bar']}
+            height={300}
+          />
         </Grid>
       </Grid>
 
       {/* Charts Row 2: Generica + Unidad */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, lg: 6 }}>
-          <GenericaBarChart data={porGenerica || []} />
+          <ChartWrapper
+            title="Ejecución por Genérica de Gasto"
+            data={genericaChartData}
+            dataKeys={[
+              { key: 'PIM', label: 'PIM', color: '#1565c0', defaultVisible: true },
+              { key: 'Certificado', label: 'Certificado', color: '#7b1fa2', defaultVisible: true },
+              { key: 'Devengado', label: 'Devengado', color: '#00897b', defaultVisible: true },
+              { key: 'Girado', label: 'Girado', color: '#388e3c', defaultVisible: false },
+            ]}
+            defaultChartType="bar"
+            allowedChartTypes={['bar', 'line', 'area', 'pie']}
+            height={350}
+          />
         </Grid>
         <Grid size={{ xs: 12, lg: 6 }}>
-          <UnidadBarChart data={porUnidad || []} />
+          <ChartWrapper
+            title="Ejecución por Unidad Orgánica"
+            data={unidadChartData}
+            dataKeys={[
+              { key: 'PIM', label: 'PIM', color: '#1565c0', defaultVisible: true },
+              { key: 'Certificado', label: 'Certificado', color: '#7b1fa2', defaultVisible: false },
+              { key: 'Devengado', label: 'Devengado', color: '#00897b', defaultVisible: true },
+              { key: 'Girado', label: 'Girado', color: '#388e3c', defaultVisible: false },
+            ]}
+            defaultChartType="bar"
+            allowedChartTypes={['bar', 'line', 'area', 'pie']}
+            height={350}
+          />
         </Grid>
       </Grid>
 

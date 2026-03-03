@@ -13,10 +13,9 @@ import {
 import { useUserUnidades } from '../../hooks/useUserUnidades';
 import KPICard from '../../components/widgets/KPICard';
 import GaugeChart from '../../components/charts/GaugeChart';
-import GenericaBarChart from '../../components/charts/GenericaBarChart';
+import ChartWrapper from '../../components/charts/ChartWrapper';
 import ClasificadorTreemap from '../../components/charts/ClasificadorTreemap';
-import ComparativoBarChart from '../../components/charts/ComparativoBarChart';
-import TrendLineChart from '../../components/charts/TrendLineChart';
+import ResumenPresupuestalChart from '../../components/charts/ResumenPresupuestalChart';
 import SortableTable, { ProgressCell } from '../../components/tables/SortableTable';
 import FilterBar from '../../components/common/FilterBar';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
@@ -24,11 +23,17 @@ import { formatCurrency, formatPercent } from '../../utils/formatters';
 const ClasificadoresDashboard = () => {
   const { filterUnidadOptions, defaultCodigo } = useUserUnidades();
   const [anio, setAnio] = useState(2026);
-  const [filterValues, setFilterValues] = useState({ generica: '', unidad_id: defaultCodigo || '', fuente_id: '' });
+  const [filterValues, setFilterValues] = useState({
+    generica: '',
+    subgenerica: '',
+    unidad_id: defaultCodigo || '',
+    fuente_id: '',
+  });
 
   const activeFilters = useMemo(() => {
     const f = {};
     if (filterValues.generica) f.generica = filterValues.generica;
+    if (filterValues.subgenerica) f.subgenerica = filterValues.subgenerica;
     if (filterValues.unidad_id) f.unidad_id = filterValues.unidad_id;
     if (filterValues.fuente_id) f.fuente_id = filterValues.fuente_id;
     return f;
@@ -41,16 +46,37 @@ const ClasificadoresDashboard = () => {
   const { data: tendencia } = useTendenciaFiltrada(anio, activeFilters);
 
   const handleFilterChange = (name, value) => {
-    setFilterValues((prev) => ({ ...prev, [name]: value }));
+    setFilterValues((prev) => {
+      const next = { ...prev, [name]: value };
+      // Reset subgenérica when genérica changes
+      if (name === 'generica') next.subgenerica = '';
+      return next;
+    });
   };
 
-  // Build genérica options from the aggregated data
+  // Build genérica options
   const genericaOptions = useMemo(() => {
     const seen = new Set();
     return (genericas || [])
       .filter((g) => { if (seen.has(g.generica)) return false; seen.add(g.generica); return true; })
-      .map((g) => ({ value: g.generica, label: g.generica }));
+      .map((g) => ({ value: g.generica, label: `${g.generica} - ${g.generica_nombre || g.generica}` }));
   }, [genericas]);
+
+  // Build subgenérica options from detalle (filtered by selected genérica)
+  const subgenericaOptions = useMemo(() => {
+    const seen = new Set();
+    return (detalle || [])
+      .filter((d) => {
+        if (filterValues.generica && d.generica !== filterValues.generica) return false;
+        if (seen.has(d.subgenerica)) return false;
+        seen.add(d.subgenerica);
+        return true;
+      })
+      .map((d) => ({
+        value: d.subgenerica,
+        label: `${d.subgenerica} - ${d.nombre_subgenerica || d.subgenerica}`,
+      }));
+  }, [detalle, filterValues.generica]);
 
   const unidadOptions = useMemo(() => {
     const allOptions = (unidades || []).map((u) => ({ value: u.unidad_codigo, label: u.unidad_nombre }));
@@ -62,7 +88,8 @@ const ClasificadoresDashboard = () => {
   }, [fuentes]);
 
   const filters = [
-    { name: 'generica', label: 'Genérica de Gasto', options: genericaOptions, width: 250 },
+    { name: 'generica', label: 'Código Genérica', options: genericaOptions, width: 300 },
+    { name: 'subgenerica', label: 'Código Subgenérica', options: subgenericaOptions, width: 320 },
     { name: 'unidad_id', label: 'Unidad Orgánica', options: unidadOptions, width: 220 },
     { name: 'fuente_id', label: 'Fuente Financiamiento', options: fuenteOptions, width: 220 },
   ];
@@ -78,7 +105,13 @@ const ClasificadoresDashboard = () => {
     return { totalClasificadores: data.length, uniqueGenericas, totalPim, totalDevengado, totalCertificado, avance };
   }, [detalle]);
 
-  // Aggregate by genérica for treemap (roll up subgenéricas)
+  const resumenData = useMemo(() => ({
+    pim: kpis.totalPim,
+    certificado: kpis.totalCertificado,
+    devengado: kpis.totalDevengado,
+  }), [kpis]);
+
+  // Aggregate by genérica for treemap
   const treemapData = useMemo(() => {
     const map = {};
     (detalle || []).forEach((c) => {
@@ -95,44 +128,45 @@ const ClasificadoresDashboard = () => {
     }));
   }, [detalle]);
 
-  // Subgenérica chart data (when genérica is filtered)
+  // Genérica chart data
+  const genericaChartData = useMemo(() => {
+    return treemapData.map((g) => ({
+      name: g.nombre_generica || g.generica,
+      PIM: g.total_pim,
+      Devengado: g.total_devengado,
+    }));
+  }, [treemapData]);
+
+  // Subgenérica chart data
   const subgenericaChartData = useMemo(() => {
     return (detalle || []).slice(0, 15).map((c) => ({
-      name: c.nombre_subgenerica?.length > 25 ? c.nombre_subgenerica.substring(0, 25) + '...' : (c.nombre_subgenerica || c.subgenerica),
+      name: c.nombre_subgenerica || c.subgenerica,
       PIM: c.total_pim,
       Certificado: c.total_certificado,
       Devengado: c.total_devengado,
     }));
   }, [detalle]);
 
-  // Enrich genérica data for existing GenericaBarChart
-  const genericaChartData = useMemo(() => {
-    return treemapData.map((g) => ({
-      generica_nombre: g.nombre_generica || g.generica,
-      total_pim: g.total_pim,
-      total_certificado: g.total_pim * 0.8, // approximate if not available
-      total_devengado: g.total_devengado,
+  // Tendencia chart data
+  const tendenciaChartData = useMemo(() => {
+    return (tendencia || []).map((item) => ({
+      name: item.mes_nombre,
+      'Devengado Acum.': item.acum_devengado,
+      'Compromiso Acum.': item.acum_compromiso,
+      'Girado Acum.': item.acum_girado,
     }));
-  }, [treemapData]);
+  }, [tendencia]);
 
   const tableColumns = [
     { key: 'generica', label: 'Genérica', sortable: true },
     {
       key: 'nombre_generica', label: 'Nombre Genérica', sortable: true,
-      render: (val) => (
-        <Typography variant="body2" sx={{ maxWidth: 200 }}>
-          {val?.length > 35 ? val.substring(0, 35) + '...' : val}
-        </Typography>
-      ),
+      render: (val) => <Typography variant="body2">{val}</Typography>,
     },
     { key: 'subgenerica', label: 'Subgenérica', sortable: true },
     {
       key: 'nombre_subgenerica', label: 'Nombre Subgenérica', sortable: true,
-      render: (val) => (
-        <Typography variant="body2" sx={{ maxWidth: 200 }}>
-          {val?.length > 35 ? val.substring(0, 35) + '...' : val}
-        </Typography>
-      ),
+      render: (val) => <Typography variant="body2">{val}</Typography>,
     },
     { key: 'total_pim', label: 'PIM', align: 'right', sortable: true, format: formatCurrency },
     { key: 'total_certificado', label: 'Certificado', align: 'right', sortable: true, format: formatCurrency },
@@ -166,7 +200,6 @@ const ClasificadoresDashboard = () => {
         </FormControl>
       </Box>
 
-      {/* Filters */}
       <FilterBar filters={filters} values={filterValues} onChange={handleFilterChange} collapsible />
 
       {isLoading ? (
@@ -191,6 +224,13 @@ const ClasificadoresDashboard = () => {
             </Grid>
           </Grid>
 
+          {/* Resumen Presupuestal */}
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid size={12}>
+              <ResumenPresupuestalChart resumen={resumenData} />
+            </Grid>
+          </Grid>
+
           {/* Gauges */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid size={{ xs: 6, md: 4 }}>
@@ -210,19 +250,49 @@ const ClasificadoresDashboard = () => {
               <ClasificadorTreemap data={treemapData} />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
-              <GenericaBarChart data={genericaChartData} />
+              <ChartWrapper
+                title="Ejecución por Genérica"
+                data={genericaChartData}
+                dataKeys={[
+                  { key: 'PIM', label: 'PIM', color: '#1565c0', defaultVisible: true },
+                  { key: 'Devengado', label: 'Devengado', color: '#00897b', defaultVisible: true },
+                ]}
+                defaultChartType="bar"
+                allowedChartTypes={['bar', 'line', 'area', 'pie']}
+                height={350}
+              />
             </Grid>
           </Grid>
 
           <Grid container spacing={3} sx={{ mb: 3 }}>
             <Grid size={{ xs: 12, lg: 7 }}>
-              <TrendLineChart data={tendencia || []} />
+              <ChartWrapper
+                title="Tendencia de Ejecución Mensual"
+                data={tendenciaChartData}
+                dataKeys={[
+                  { key: 'Devengado Acum.', label: 'Devengado Acum.', color: '#1565c0', defaultVisible: true },
+                  { key: 'Compromiso Acum.', label: 'Compromiso Acum.', color: '#f57c00', defaultVisible: true },
+                  { key: 'Girado Acum.', label: 'Girado Acum.', color: '#388e3c', defaultVisible: true },
+                ]}
+                defaultChartType="line"
+                allowedChartTypes={['line', 'area', 'bar']}
+                xAxisAngle={0}
+                xAxisHeight={30}
+                height={300}
+              />
             </Grid>
             <Grid size={{ xs: 12, lg: 5 }}>
-              <ComparativoBarChart
-                data={subgenericaChartData}
+              <ChartWrapper
                 title="Detalle por Subgenérica"
-                layout="vertical"
+                data={subgenericaChartData}
+                dataKeys={[
+                  { key: 'PIM', label: 'PIM', color: '#1565c0', defaultVisible: true },
+                  { key: 'Certificado', label: 'Certificado', color: '#7b1fa2', defaultVisible: true },
+                  { key: 'Devengado', label: 'Devengado', color: '#00897b', defaultVisible: true },
+                ]}
+                defaultChartType="bar"
+                allowedChartTypes={['bar', 'line', 'area', 'pie']}
+                height={300}
               />
             </Grid>
           </Grid>

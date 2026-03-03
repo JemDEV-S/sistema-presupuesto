@@ -1,6 +1,6 @@
 """
-Django settings for SIDAPRESS project.
-Sistema de Dashboards Presupuestales Municipales
+Django settings for Sistema de Consulta Presupuestal.
+Sistema de Consulta Presupuestal Municipal
 """
 
 from pathlib import Path

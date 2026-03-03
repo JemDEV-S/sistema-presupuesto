@@ -83,11 +83,11 @@ const Sidebar = ({ mobileOpen, onClose }) => {
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ p: 2, textAlign: 'center' }}>
-        <Typography variant="h5" color="primary" fontWeight={700}>
-          SIDAPRESS
+        <Typography variant="h6" color="primary" fontWeight={700}>
+          Consulta Presupuestal
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Sistema Presupuestal Municipal
+          Sistema de Consulta Presupuestal
         </Typography>
       </Box>
 

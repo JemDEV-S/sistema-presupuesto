@@ -6,10 +6,11 @@ class MetaFilter(django_filters.FilterSet):
     anio = django_filters.NumberFilter(field_name='anio_fiscal__anio')
     unidad = django_filters.NumberFilter(field_name='unidad_organica__id')
     tipo = django_filters.CharFilter(field_name='tipo_meta')
+    tipo_actividad = django_filters.CharFilter(field_name='tipo_actividad')
 
     class Meta:
         model = Meta
-        fields = ['anio', 'unidad', 'tipo', 'is_active']
+        fields = ['anio', 'unidad', 'tipo', 'tipo_actividad', 'is_active']
 
 
 class EjecucionFilter(django_filters.FilterSet):
