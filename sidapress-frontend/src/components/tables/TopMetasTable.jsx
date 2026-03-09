@@ -84,7 +84,7 @@ const TopMetasTable = ({ data, title = 'Top Metas Presupuestales' }) => {
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={row.tipo_meta === 'PROYECTO' ? 'Proyecto' : 'Actividad'}
+                      label={row.tipo_meta === 'PROYECTO' ? 'Proyecto' : 'Producto'}
                       size="small"
                       color={row.tipo_meta === 'PROYECTO' ? 'warning' : 'info'}
                       variant="outlined"

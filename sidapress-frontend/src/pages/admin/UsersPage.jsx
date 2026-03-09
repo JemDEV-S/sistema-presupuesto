@@ -4,7 +4,7 @@ import {
   TableHead, TableRow, TablePagination, Button, IconButton, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   FormControl, InputLabel, Select, MenuItem, Alert, Snackbar,
-  Tooltip, InputAdornment, FormControlLabel, Checkbox,
+  Tooltip, InputAdornment, FormControlLabel, Checkbox, Autocomplete,
 } from '@mui/material';
 import {
   Add, Edit, Delete, PersonAdd, Search, Shield,
@@ -67,8 +67,33 @@ const UsersPage = () => {
 
   const fetchUnidades = useCallback(async () => {
     try {
-      const res = await catalogosService.getUnidades({ is_active: true });
-      setUnidades(res.data.results || res.data);
+      // Cargar todas las unidades (paginación puede limitar, traer varias páginas si es necesario)
+      let allData = [];
+      let nextUrl = null;
+      const firstRes = await catalogosService.getUnidades({ is_active: true, page_size: 200 });
+      const firstData = firstRes.data.results || firstRes.data;
+      allData = [...firstData];
+      nextUrl = firstRes.data.next || null;
+      while (nextUrl) {
+        const res = await catalogosService.getUnidadesByUrl(nextUrl);
+        allData = [...allData, ...(res.data.results || res.data)];
+        nextUrl = res.data.next || null;
+      }
+      // Construir lista con indentación jerárquica
+      const organos = allData.filter((u) => u.nivel === 1).sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+      const flat = [];
+      for (const organo of organos) {
+        flat.push({ ...organo, label: organo.nombre });
+        const hijos = allData.filter((u) => u.parent === organo.id && u.nivel === 2).sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+        for (const unidad of hijos) {
+          flat.push({ ...unidad, label: unidad.nombre });
+          const subhijos = allData.filter((u) => u.parent === unidad.id && u.nivel === 3).sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+          for (const sub of subhijos) {
+            flat.push({ ...sub, label: sub.nombre });
+          }
+        }
+      }
+      setUnidades(flat);
     } catch (err) {
       console.error('Error cargando unidades:', err);
     }
@@ -326,21 +351,37 @@ const UsersPage = () => {
               ))}
             </Select>
           </FormControl>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>Unidad Orgánica</InputLabel>
-            <Select
-              value={rolFormData.unidad_organica_id}
-              label="Unidad Orgánica"
-              onChange={(e) => setRolFormData({ ...rolFormData, unidad_organica_id: e.target.value })}
-            >
-              <MenuItem value="">
-                <em>Sin unidad (Acceso global)</em>
-              </MenuItem>
-              {unidades.map((u) => (
-                <MenuItem key={u.id} value={u.id}>{u.codigo} - {u.nombre}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Autocomplete
+            fullWidth
+            sx={{ mt: 2 }}
+            options={[{ id: '', label: 'Sin unidad (Acceso global)', nombre: 'Sin unidad', nivel: 0 }, ...unidades]}
+            getOptionLabel={(opt) => opt.label || opt.nombre || ''}
+            value={
+              rolFormData.unidad_organica_id
+                ? unidades.find((u) => u.id === rolFormData.unidad_organica_id) || null
+                : { id: '', label: 'Sin unidad (Acceso global)', nombre: 'Sin unidad', nivel: 0 }
+            }
+            onChange={(e, val) => setRolFormData({ ...rolFormData, unidad_organica_id: val?.id || '' })}
+            isOptionEqualToValue={(opt, val) => opt.id === val?.id}
+            renderOption={(props, opt) => {
+              const { key, ...rest } = props;
+              const prefix = opt.nivel === 2 ? '├─ ' : opt.nivel === 3 ? '│  ├─ ' : '';
+              return (
+                <li key={opt.id || 'global'} {...rest} style={{ ...rest.style, fontWeight: opt.nivel === 1 ? 600 : 400 }}>
+                  {prefix}{opt.nivel === 0 ? <em>{opt.nombre}</em> : opt.nombre}
+                </li>
+              );
+            }}
+            renderInput={(params) => <TextField {...params} label="Unidad Orgánica" />}
+            filterOptions={(options, { inputValue }) => {
+              const q = inputValue.toLowerCase();
+              if (!q) return options;
+              return options.filter((o) =>
+                (o.nombre || '').toLowerCase().includes(q) ||
+                (o.codigo || '').toLowerCase().includes(q)
+              );
+            }}
+          />
           {rolFormData.unidad_organica_id && (
             <FormControlLabel
               sx={{ mt: 1 }}

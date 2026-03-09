@@ -65,10 +65,10 @@ class MetaViewSet(viewsets.ModelViewSet):
     ordering_fields = ['codigo', 'nombre']
 
     permission_map = {
-        'list': 'meta.view', 'retrieve': 'meta.view',
-        'create': 'meta.create',
-        'update': 'meta.edit', 'partial_update': 'meta.edit',
-        'destroy': 'meta.delete',
+        'list': 'metas.view', 'retrieve': 'metas.view',
+        'create': 'metas.create',
+        'update': 'metas.edit', 'partial_update': 'metas.edit',
+        'destroy': 'metas.delete',
     }
 
     def get_permissions(self):

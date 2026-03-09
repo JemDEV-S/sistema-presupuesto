@@ -2,10 +2,11 @@ import { useState, useMemo, useEffect } from 'react';
 import {
   Box, Typography, Grid, FormControl, InputLabel, Select, MenuItem,
   CircularProgress, Card, CardContent, Autocomplete, TextField, Chip,
+  IconButton, Tooltip,
 } from '@mui/material';
 import {
   AccountBalance, TrendingUp, Receipt, Savings,
-  AssignmentTurnedIn, Speed, Flag, Business,
+  AssignmentTurnedIn, Speed, Flag, Business, Visibility,
 } from '@mui/icons-material';
 import useAuthStore from '../../store/authStore';
 import {
@@ -18,6 +19,7 @@ import GaugeChart from '../../components/charts/GaugeChart';
 import ChartWrapper from '../../components/charts/ChartWrapper';
 import ResumenPresupuestalChart from '../../components/charts/ResumenPresupuestalChart';
 import SortableTable, { ProgressCell } from '../../components/tables/SortableTable';
+import MetaDetailDialog from '../../components/dialogs/MetaDetailDialog';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 
 const UnidadDashboard = () => {
@@ -25,6 +27,7 @@ const UnidadDashboard = () => {
   const { isGlobalAccess, filterUnidadOptions, defaultCodigo } = useUserUnidades();
   const [anio, setAnio] = useState(2026);
   const [unidadId, setUnidadId] = useState(defaultCodigo || '');
+  const [detailMeta, setDetailMeta] = useState(null);
 
   const { data: unidades } = usePorUnidad(anio);
 
@@ -89,7 +92,7 @@ const UnidadDashboard = () => {
       key: 'tipo_meta', label: 'Tipo', sortable: true,
       render: (val) => (
         <Chip
-          label={val === 'PROYECTO' ? 'Proyecto' : 'Actividad'}
+          label={val === 'PROYECTO' ? 'Proyecto' : 'Producto'}
           size="small"
           color={val === 'PROYECTO' ? 'warning' : 'info'}
           variant="outlined"
@@ -114,6 +117,26 @@ const UnidadDashboard = () => {
       key: 'avance_pct', label: 'Avance', align: 'center', sortable: true,
       headerSx: { minWidth: 160 },
       render: (val) => <ProgressCell value={val} />,
+    },
+    {
+      key: 'meta_id', label: 'Acciones', align: 'center', sortable: false,
+      render: (val, row) => (
+        <Tooltip title="Ver detalle">
+          <IconButton size="small" color="info"
+            onClick={() => setDetailMeta({
+              id: row.meta_id,
+              codigo: row.meta_codigo,
+              nombre: row.meta_nombre,
+              tipo_meta: row.tipo_meta,
+              finalidad: row.finalidad,
+              nombre_programa_pptal: row.nombre_programa_pptal,
+              nombre_producto_proyecto: row.nombre_producto_proyecto,
+              cadena_funcional: row.cadena_funcional,
+            })}>
+            <Visibility fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ),
     },
   ];
 
@@ -258,6 +281,13 @@ const UnidadDashboard = () => {
           />
         </>
       )}
+
+      {/* Dialog: Detalle de Meta */}
+      <MetaDetailDialog
+        open={!!detailMeta}
+        onClose={() => setDetailMeta(null)}
+        meta={detailMeta}
+      />
     </Box>
   );
 };

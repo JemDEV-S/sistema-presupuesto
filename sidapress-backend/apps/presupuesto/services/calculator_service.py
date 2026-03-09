@@ -128,14 +128,41 @@ def get_ejecucion_por_generica(anio_fiscal_id, allowed_unidad_ids=None):
     )
     if allowed_unidad_ids is not None:
         qs = qs.filter(meta__unidad_organica_id__in=allowed_unidad_ids)
-    return list(
-        qs.values(
-            generica=F('clasificador_gasto__generica'),
-        ).annotate(
-            total_pim=Sum('pim'),
-            total_certificado=Sum('certificado'),
-        ).order_by('-total_pim')
-    )
+    ejecuciones = qs.values(
+        generica=F('clasificador_gasto__generica'),
+        generica_nombre=F('clasificador_gasto__nombre_generica'),
+    ).annotate(
+        total_pim=Sum('pim'),
+        total_certificado=Sum('certificado'),
+    ).order_by('-total_pim')
+
+    resultado = []
+    for ej in ejecuciones:
+        pim = ej['total_pim'] or Decimal('0')
+        # Obtener devengado y girado de mensuales
+        mensual_qs = EjecucionMensual.objects.filter(
+            ejecucion__anio_fiscal_id=anio_fiscal_id,
+            ejecucion__clasificador_gasto__generica=ej['generica'],
+        )
+        if allowed_unidad_ids is not None:
+            mensual_qs = mensual_qs.filter(ejecucion__meta__unidad_organica_id__in=allowed_unidad_ids)
+        mensuales = mensual_qs.aggregate(
+            total_devengado=Sum('devengado'),
+            total_girado=Sum('girado'),
+        )
+        devengado = mensuales['total_devengado'] or Decimal('0')
+        girado = mensuales['total_girado'] or Decimal('0')
+
+        resultado.append({
+            'generica': ej['generica'],
+            'generica_nombre': ej['generica_nombre'] or ej['generica'],
+            'total_pim': float(pim),
+            'total_certificado': float(ej['total_certificado'] or 0),
+            'total_devengado': float(devengado),
+            'total_girado': float(girado),
+        })
+
+    return resultado
 
 
 def get_ejecucion_por_unidad(anio_fiscal_id, allowed_unidad_ids=None):
@@ -163,7 +190,12 @@ def get_ejecucion_por_unidad(anio_fiscal_id, allowed_unidad_ids=None):
         )
         if allowed_unidad_ids is not None:
             mensual_qs = mensual_qs.filter(ejecucion__meta__unidad_organica_id__in=allowed_unidad_ids)
-        devengado = mensual_qs.aggregate(total=Sum('devengado'))['total'] or Decimal('0')
+        mensuales = mensual_qs.aggregate(
+            total_devengado=Sum('devengado'),
+            total_girado=Sum('girado'),
+        )
+        devengado = mensuales['total_devengado'] or Decimal('0')
+        girado = mensuales['total_girado'] or Decimal('0')
 
         avance = float(devengado / pim * 100) if pim > 0 else 0
         resultado.append({
@@ -172,6 +204,7 @@ def get_ejecucion_por_unidad(anio_fiscal_id, allowed_unidad_ids=None):
             'total_pim': float(pim),
             'total_certificado': float(ej['total_certificado'] or 0),
             'total_devengado': float(devengado),
+            'total_girado': float(girado),
             'avance_pct': round(avance, 2),
         })
 

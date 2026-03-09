@@ -24,6 +24,7 @@ const ExecutiveDashboard = () => {
   const user = useAuthStore((state) => state.user);
   const { isGlobalAccess, filterUnidadOptions, defaultCodigo } = useUserUnidades();
   const [anio, setAnio] = useState(2026);
+  const [topUnidades, setTopUnidades] = useState(5);
   const [filterValues, setFilterValues] = useState({
     fuente: '',
     unidad: defaultCodigo || '',
@@ -72,28 +73,51 @@ const ExecutiveDashboard = () => {
 
   // Prepared chart data
   const genericaChartData = useMemo(() => {
-    return (porGenerica || []).map((item) => ({
-      name: item.generica_nombre?.length > 25
-        ? item.generica_nombre.substring(0, 25) + '...'
-        : item.generica_nombre,
-      PIM: parseFloat(item.total_pim) || 0,
-      Devengado: parseFloat(item.total_devengado) || 0,
-      Certificado: parseFloat(item.total_certificado) || 0,
-      Girado: parseFloat(item.total_girado) || 0,
-    }));
+    return (porGenerica || []).map((item) => {
+      const nombre = item.generica_nombre || item.generica || 'Sin nombre';
+      return {
+        fullName: nombre,
+        name: nombre.length > 40 ? nombre.substring(0, 40) + '...' : nombre,
+        PIM: parseFloat(item.total_pim) || 0,
+        Devengado: parseFloat(item.total_devengado) || 0,
+        Certificado: parseFloat(item.total_certificado) || 0,
+        Girado: parseFloat(item.total_girado) || 0,
+      };
+    });
   }, [porGenerica]);
 
   const unidadChartData = useMemo(() => {
-    return (porUnidad || []).map((item) => ({
-      name: item.unidad_nombre?.length > 20
-        ? item.unidad_nombre.substring(0, 20) + '...'
+    const sorted = [...(porUnidad || [])].sort(
+      (a, b) => (parseFloat(b.total_pim) || 0) - (parseFloat(a.total_pim) || 0)
+    );
+    const limit = topUnidades === 0 ? sorted.length : topUnidades;
+    const top = sorted.slice(0, limit);
+    const rest = sorted.slice(limit);
+
+    const result = top.map((item) => ({
+      fullName: item.unidad_nombre,
+      name: item.unidad_nombre?.length > 35
+        ? item.unidad_nombre.substring(0, 35) + '...'
         : item.unidad_nombre,
       PIM: parseFloat(item.total_pim) || 0,
       Devengado: parseFloat(item.total_devengado) || 0,
       Certificado: parseFloat(item.total_certificado) || 0,
       Girado: parseFloat(item.total_girado) || 0,
     }));
-  }, [porUnidad]);
+
+    if (rest.length > 0) {
+      result.push({
+        fullName: `Otras unidades (${rest.length})`,
+        name: `Otras (${rest.length})`,
+        PIM: rest.reduce((s, i) => s + (parseFloat(i.total_pim) || 0), 0),
+        Devengado: rest.reduce((s, i) => s + (parseFloat(i.total_devengado) || 0), 0),
+        Certificado: rest.reduce((s, i) => s + (parseFloat(i.total_certificado) || 0), 0),
+        Girado: rest.reduce((s, i) => s + (parseFloat(i.total_girado) || 0), 0),
+      });
+    }
+
+    return result;
+  }, [porUnidad, topUnidades]);
 
   const tendenciaChartData = useMemo(() => {
     return (tendencia || []).map((item) => ({
@@ -337,9 +361,9 @@ const ExecutiveDashboard = () => {
         </Grid>
       </Grid>
 
-      {/* Charts Row 2: Generica + Unidad */}
+      {/* Charts Row 2: Generica */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, lg: 6 }}>
+        <Grid size={12}>
           <ChartWrapper
             title="Ejecución por Genérica de Gasto"
             data={genericaChartData}
@@ -350,11 +374,31 @@ const ExecutiveDashboard = () => {
               { key: 'Girado', label: 'Girado', color: '#388e3c', defaultVisible: false },
             ]}
             defaultChartType="bar"
-            allowedChartTypes={['bar', 'line', 'area', 'pie']}
+            allowedChartTypes={['bar', 'horizontalBar', 'line', 'area', 'pie']}
             height={350}
+            xAxisHeight={100}
           />
         </Grid>
-        <Grid size={{ xs: 12, lg: 6 }}>
+      </Grid>
+
+      {/* Charts Row 3: Unidad Orgánica */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid size={12}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Typography variant="body2" color="text.secondary">Mostrar:</Typography>
+            <FormControl size="small" sx={{ minWidth: 100 }}>
+              <Select
+                value={topUnidades}
+                onChange={(e) => setTopUnidades(e.target.value)}
+                sx={{ fontSize: 13 }}
+              >
+                <MenuItem value={5}>Top 5</MenuItem>
+                <MenuItem value={10}>Top 10</MenuItem>
+                <MenuItem value={15}>Top 15</MenuItem>
+                <MenuItem value={0}>Todas</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
           <ChartWrapper
             title="Ejecución por Unidad Orgánica"
             data={unidadChartData}
@@ -364,9 +408,9 @@ const ExecutiveDashboard = () => {
               { key: 'Devengado', label: 'Devengado', color: '#00897b', defaultVisible: true },
               { key: 'Girado', label: 'Girado', color: '#388e3c', defaultVisible: false },
             ]}
-            defaultChartType="bar"
-            allowedChartTypes={['bar', 'line', 'area', 'pie']}
-            height={350}
+            defaultChartType="horizontalBar"
+            allowedChartTypes={['horizontalBar', 'bar', 'line', 'area', 'pie']}
+            height={Math.max(300, unidadChartData.length * 50)}
           />
         </Grid>
       </Grid>

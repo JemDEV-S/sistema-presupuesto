@@ -184,7 +184,7 @@
 | `codigo` | CharField(20) | |
 | `nombre` | CharField(500) | |
 | `finalidad` | TextField | blank, default='' |
-| `tipo_meta` | CharField | choices: ACTIVIDAD, PROYECTO; default=ACTIVIDAD |
+| `tipo_meta` | CharField | choices: PRODUCTO, PROYECTO; default=PROYECTO |
 | `cantidad_meta_anual` | DecimalField(15,2) | default=0 |
 | `sec_func` | IntegerField | nullable |
 | `codigo_programa_pptal` | CharField(20) | blank |

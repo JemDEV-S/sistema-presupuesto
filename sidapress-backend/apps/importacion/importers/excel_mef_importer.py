@@ -101,8 +101,8 @@ COL_DAILY = {
     'mto_pagado_01': 74,
 }
 
-# Columnas de la hoja SF (0-indexed, hoja empieza en fila 3)
-COL_SF = {
+# Columnas de la hoja SF - formato extendido (15 cols, Excel original)
+COL_SF_EXTENDED = {
     'sec_func': 1,
     'nro_pp': 2,
     'programa_pptal': 3,
@@ -118,6 +118,28 @@ COL_SF = {
     'sub_unidad': 13,
     'nombre_corto': 14,
 }
+
+# Columnas de la hoja SF - formato compacto (9 cols, Excel nuevo)
+COL_SF_COMPACT = {
+    'sec_func': 1,
+    'producto_proyecto': 2,
+    'finalidad_cod': 3,
+    'finalidad': 4,
+    'organo': 5,
+    'unidad_org': 6,
+    'sub_unidad': 7,
+    'nombre_corto': 8,
+}
+
+
+def _detect_sf_format(ws):
+    """Auto-detecta formato de hoja SF leyendo los encabezados."""
+    header_row = list(ws.iter_rows(min_row=2, max_row=2, values_only=True))[0]
+    non_none = sum(1 for v in header_row if v is not None)
+    # Formato extendido tiene ~14 cols con datos, compacto tiene ~8
+    if non_none > 10:
+        return COL_SF_EXTENDED, True
+    return COL_SF_COMPACT, False
 
 # Columnas de la hoja RB
 COL_RB = {
@@ -429,12 +451,16 @@ def _process_sf_sheet(wb, anio_fiscal):
     SF → UnidadOrganica (jerarquía) + Meta (una por sec_func).
     Retorna dict {sec_func: {'unidad': unidad_obj, 'meta': meta_obj}}.
     Filtra filas con #REF! y ANULADO. Normaliza nombres para evitar duplicados.
+    Auto-detecta formato extendido (15 cols) o compacto (9 cols).
     """
     if 'SF' not in wb.sheetnames:
         logger.warning('Hoja SF no encontrada, saltando')
         return {}
 
     ws = wb['SF']
+    col_sf, is_extended = _detect_sf_format(ws)
+    logger.info(f'SF: formato {"extendido" if is_extended else "compacto"} detectado')
+
     rows = list(ws.iter_rows(min_row=3, values_only=True))
 
     sf_mapping = {}
@@ -445,14 +471,20 @@ def _process_sf_sheet(wb, anio_fiscal):
 
     for row_num, row in enumerate(rows, start=3):
         try:
-            sec_func = safe_int(get_cell(row, COL_SF['sec_func']))
+            sec_func = safe_int(get_cell(row, col_sf['sec_func']))
             if sec_func is None:
                 continue
 
-            organo_nombre = safe_str(get_cell(row, COL_SF['organo']))
-            unidad_nombre = safe_str(get_cell(row, COL_SF['unidad_org']))
-            sub_unidad_nombre = safe_str(get_cell(row, COL_SF['sub_unidad']))
-            nombre_corto = safe_str(get_cell(row, COL_SF['nombre_corto']))
+            organo_nombre = safe_str(get_cell(row, col_sf['organo']))
+            unidad_nombre = safe_str(get_cell(row, col_sf['unidad_org']))
+            sub_unidad_nombre = safe_str(get_cell(row, col_sf['sub_unidad']))
+            nombre_corto = safe_str(get_cell(row, col_sf['nombre_corto']))
+            finalidad_val = safe_str(get_cell(row, col_sf['finalidad']))
+
+            # Saltar filas que solo tienen sec_func pero no datos reales
+            if not organo_nombre and not finalidad_val and not nombre_corto:
+                skipped_invalid += 1
+                continue
 
             # Filtrar filas ANULADO y #REF! (no se pueden usar)
             organo_invalid = _is_invalid_sf_value(organo_nombre)
@@ -476,7 +508,11 @@ def _process_sf_sheet(wb, anio_fiscal):
                 unidad_norm = _normalize_name(unidad_nombre)
                 sub_unidad_norm = _normalize_name(sub_unidad_nombre)
 
-                # Nivel 1: Órgano
+                # Deduplicar: si un nivel tiene el mismo nombre que su padre, no crear hijo
+                unidad_es_igual_a_organo = unidad_norm and unidad_norm == organo_norm
+                sub_es_igual_a_unidad = sub_unidad_norm and sub_unidad_norm == unidad_norm
+
+                # Nivel 1: Órgano (siempre se crea)
                 if organo_norm not in organos_cache:
                     org_codigo = _make_unit_codigo(organo_nombre, 'O_')
                     organo_obj, _ = UnidadOrganica.objects.get_or_create(
@@ -491,8 +527,8 @@ def _process_sf_sheet(wb, anio_fiscal):
                     organos_cache[organo_norm] = organo_obj
                 organo_obj = organos_cache[organo_norm]
 
-                # Nivel 2: Unidad Orgánica
-                if unidad_nombre and not _is_invalid_sf_value(unidad_nombre):
+                # Nivel 2: Unidad Orgánica (solo si es diferente al órgano)
+                if unidad_nombre and not _is_invalid_sf_value(unidad_nombre) and not unidad_es_igual_a_organo:
                     uo_key = (organo_norm, unidad_norm)
                     if uo_key not in unidades_cache:
                         uo_codigo = _make_unit_codigo(unidad_nombre, 'U_', [organo_nombre])
@@ -508,15 +544,16 @@ def _process_sf_sheet(wb, anio_fiscal):
                         unidades_cache[uo_key] = unidad_obj
                     unidad_obj = unidades_cache[uo_key]
 
-                # Nivel 3: Sub Unidad Orgánica
-                if sub_unidad_nombre and unidad_obj and not _is_invalid_sf_value(sub_unidad_nombre):
+                # Nivel 3: Sub Unidad Orgánica (solo si es diferente a la unidad)
+                parent_for_sub = unidad_obj or organo_obj
+                if sub_unidad_nombre and parent_for_sub and not _is_invalid_sf_value(sub_unidad_nombre) and not sub_es_igual_a_unidad:
                     sub_key = (organo_norm, unidad_norm, sub_unidad_norm)
                     if sub_key not in subunidades_cache:
                         sub_codigo = _make_unit_codigo(sub_unidad_nombre, 'S_', [organo_nombre, unidad_nombre])
                         sub_unidad_obj, _ = UnidadOrganica.objects.get_or_create(
                             nombre=sub_unidad_nombre[:200],
                             nivel=3,
-                            parent=unidad_obj,
+                            parent=parent_for_sub,
                             defaults={
                                 'codigo': sub_codigo,
                                 'nombre_corto': nombre_corto[:50] if nombre_corto else sub_unidad_nombre[:50],
@@ -531,31 +568,51 @@ def _process_sf_sheet(wb, anio_fiscal):
             # ---- Crear Meta desde SF ----
             meta_codigo = str(sec_func).zfill(4)
 
-            # Parsear campos con formato "CODIGO.NOMBRE"
-            nro_pp = safe_str(get_cell(row, COL_SF['nro_pp']))
-            programa_pptal_raw = safe_str(get_cell(row, COL_SF['programa_pptal']))
-            tipo_raw = safe_str(get_cell(row, COL_SF['tipo']))
-            producto_proyecto_raw = safe_str(get_cell(row, COL_SF['producto_proyecto']))
-            actividad_raw = safe_str(get_cell(row, COL_SF['actividad']))
-            funcion_raw = safe_str(get_cell(row, COL_SF['funcion']))
-            division_func_raw = safe_str(get_cell(row, COL_SF['division_func']))
-            grupo_func_raw = safe_str(get_cell(row, COL_SF['grupo_func']))
-            finalidad_raw = safe_str(get_cell(row, COL_SF['finalidad']))
+            if is_extended:
+                # Formato extendido: todos los campos disponibles en SF
+                nro_pp = safe_str(get_cell(row, col_sf['nro_pp']))
+                programa_pptal_raw = safe_str(get_cell(row, col_sf['programa_pptal']))
+                tipo_raw = safe_str(get_cell(row, col_sf['tipo']))
+                producto_proyecto_raw = safe_str(get_cell(row, col_sf['producto_proyecto']))
+                actividad_raw = safe_str(get_cell(row, col_sf['actividad']))
+                funcion_raw = safe_str(get_cell(row, col_sf['funcion']))
+                division_func_raw = safe_str(get_cell(row, col_sf['division_func']))
+                grupo_func_raw = safe_str(get_cell(row, col_sf['grupo_func']))
+                finalidad_raw = safe_str(get_cell(row, col_sf['finalidad']))
 
-            # Parsear código.nombre de los campos que lo tienen
-            prod_cod, prod_nom = parse_codigo_nombre(producto_proyecto_raw)
-            act_cod, act_nom = parse_codigo_nombre(actividad_raw)
-            func_cod, func_nom = parse_codigo_nombre(funcion_raw)
-            div_cod, div_nom = parse_codigo_nombre(division_func_raw)
-            grupo_cod, grupo_nom = parse_codigo_nombre(grupo_func_raw)
-            final_cod, final_nom = parse_codigo_nombre(finalidad_raw)
+                prod_cod, prod_nom = parse_codigo_nombre(producto_proyecto_raw)
+                act_cod, act_nom = parse_codigo_nombre(actividad_raw)
+                func_cod, func_nom = parse_codigo_nombre(funcion_raw)
+                div_cod, div_nom = parse_codigo_nombre(division_func_raw)
+                grupo_cod, grupo_nom = parse_codigo_nombre(grupo_func_raw)
+                final_cod, final_nom = parse_codigo_nombre(finalidad_raw)
 
-            # Determinar nombre de la meta
-            nombre_meta = act_nom or prod_nom or programa_pptal_raw or f'Meta {meta_codigo}'
+                nombre_meta = act_nom or prod_nom or programa_pptal_raw or f'Meta {meta_codigo}'
+                tipo_meta = 'PROYECTO' if tipo_raw and tipo_raw.upper() == 'PROYECTO' else 'PRODUCTO'
+                tipo_prod_proy = tipo_raw if tipo_raw else ''
+            else:
+                # Formato compacto: solo finalidad y producto_proyecto disponibles
+                # Los demás campos se llenarán desde SheetGasto
+                finalidad_raw = safe_str(get_cell(row, col_sf['finalidad']))
+                producto_proyecto_raw = safe_str(get_cell(row, col_sf['producto_proyecto']))
+                finalidad_cod_raw = safe_str(get_cell(row, col_sf['finalidad_cod']))
 
-            # Determinar tipo (tipo_raw viene de la columna tipo_prod_proy: PRODUCTO o PROYECTO)
-            tipo_meta = 'PROYECTO' if tipo_raw and tipo_raw.upper() == 'PROYECTO' else 'PRODUCTO'
-            tipo_prod_proy = tipo_raw if tipo_raw else ''
+                final_cod = finalidad_cod_raw or ''
+                final_nom = finalidad_raw or ''
+                prod_cod, prod_nom = parse_codigo_nombre(producto_proyecto_raw)
+
+                nombre_meta = final_nom or prod_nom or f'Meta {meta_codigo}'
+                # Determinar tipo desde producto_proyecto (ej: "3.PRODUCTO")
+                tipo_meta = 'PRODUCTO'
+                if prod_nom and 'PROYECTO' in prod_nom.upper():
+                    tipo_meta = 'PROYECTO'
+                tipo_prod_proy = prod_nom or ''
+
+                # Campos vacíos que se llenarán desde SheetGasto
+                nro_pp = ''
+                programa_pptal_raw = ''
+                act_cod = act_nom = ''
+                func_cod = div_cod = grupo_cod = ''
 
             meta_obj, _ = Meta.objects.update_or_create(
                 anio_fiscal=anio_fiscal,
@@ -570,15 +627,15 @@ def _process_sf_sheet(wb, anio_fiscal):
                     'sec_func': sec_func,
                     'codigo_programa_pptal': nro_pp[:20] if nro_pp else '',
                     'codigo_producto_proyecto': prod_cod[:20],
-                    'codigo_actividad': act_cod[:20],
-                    'codigo_funcion': func_cod[:10],
-                    'codigo_division_fn': div_cod[:10],
-                    'codigo_grupo_fn': grupo_cod[:10],
-                    'codigo_finalidad': final_cod[:20],
+                    'codigo_actividad': act_cod[:20] if act_cod else '',
+                    'codigo_funcion': func_cod[:10] if func_cod else '',
+                    'codigo_division_fn': div_cod[:10] if div_cod else '',
+                    'codigo_grupo_fn': grupo_cod[:10] if grupo_cod else '',
+                    'codigo_finalidad': final_cod[:20] if final_cod else '',
                     # Nombres
                     'nombre_programa_pptal': programa_pptal_raw[:300] if programa_pptal_raw else '',
-                    'nombre_producto_proyecto': prod_nom[:500],
-                    'nombre_actividad': act_nom[:500],
+                    'nombre_producto_proyecto': prod_nom[:500] if prod_nom else '',
+                    'nombre_actividad': act_nom[:500] if act_nom else '',
                     # Tipos y clasificación
                     'tipo_producto_proyecto': tipo_prod_proy[:50],
                     'tipo_actividad': '',  # Se actualizará desde SheetGasto con tipo_act_obra_ac
@@ -609,7 +666,7 @@ def _process_sf_sheet(wb, anio_fiscal):
                 f'{len(organos_cache)} órganos, {len(unidades_cache)} unidades, '
                 f'{len(subunidades_cache)} sub-unidades, '
                 f'{skipped_invalid} filas inválidas filtradas')
-    return sf_mapping
+    return sf_mapping, is_extended
 
 
 # =============================================================================
@@ -776,7 +833,7 @@ def _get_or_create_rubro(data, rubros_cache):
 
 def _process_sheetgasto(rows, col_map, is_xlsx, anio_fiscal, importacion, user,
                         sf_mapping=None, rubros_cache=None, clasificadores_cache=None,
-                        is_initial=False):
+                        is_initial=False, sf_is_extended=True):
     """
     Procesa SheetGasto con lógica incremental.
     - Carga inicial: metas ya creadas por SF, solo crea ejecuciones. Actualiza avance físico.
@@ -876,6 +933,45 @@ def _process_sheetgasto(rows, col_map, is_xlsx, anio_fiscal, importacion, user,
                 tipo_act = _normalize_tipo_actividad(data.get('tipo_act_obra_ac_nom', ''))
                 if tipo_act:
                     update_fields['tipo_actividad'] = tipo_act
+
+                # Formato compacto de SF: enriquecer Meta con campos de SheetGasto
+                if not sf_is_extended:
+                    prog_cod, prog_nom = data.get('programa_pptal_cod', ''), data.get('programa_pptal_nom', '')
+                    prod_cod, prod_nom = data.get('producto_proyecto_cod', ''), data.get('producto_proyecto_nom', '')
+                    act_cod, act_nom = data.get('activ_obra_accinv_cod', ''), data.get('activ_obra_accinv_nom', '')
+                    func_cod, _ = data.get('funcion_cod', ''), data.get('funcion_nom', '')
+                    div_cod, _ = data.get('division_fn_cod', ''), data.get('division_fn_nom', '')
+                    grupo_cod, _ = data.get('grupo_fn_cod', ''), data.get('grupo_fn_nom', '')
+                    tipo_prod_raw = data.get('tipo_prod_proy_nom', '')
+
+                    # Nombre de la meta (preferir actividad > producto > programa)
+                    nombre_meta = act_nom or prod_nom or prog_nom
+                    if nombre_meta:
+                        update_fields['nombre'] = nombre_meta[:500]
+
+                    if prog_cod:
+                        update_fields['codigo_programa_pptal'] = prog_cod[:20]
+                    if prog_nom:
+                        update_fields['nombre_programa_pptal'] = prog_nom[:300]
+                    if prod_cod:
+                        update_fields['codigo_producto_proyecto'] = prod_cod[:20]
+                    if prod_nom:
+                        update_fields['nombre_producto_proyecto'] = prod_nom[:500]
+                    if act_cod:
+                        update_fields['codigo_actividad'] = act_cod[:20]
+                    if act_nom:
+                        update_fields['nombre_actividad'] = act_nom[:500]
+                    if func_cod:
+                        update_fields['codigo_funcion'] = func_cod[:10]
+                    if div_cod:
+                        update_fields['codigo_division_fn'] = div_cod[:10]
+                    if grupo_cod:
+                        update_fields['codigo_grupo_fn'] = grupo_cod[:10]
+                    if tipo_prod_raw:
+                        update_fields['tipo_producto_proyecto'] = tipo_prod_raw[:50]
+                        if 'PROYECTO' in tipo_prod_raw.upper():
+                            update_fields['tipo_meta'] = 'PROYECTO'
+
                 if update_fields:
                     Meta.objects.filter(pk=meta.pk).update(**update_fields)
                 # Actualizar AvanceFisico
@@ -1055,7 +1151,7 @@ def process_initial_load(wb, importacion, user):
 
     # Fase 4: SF (crea UnidadOrganica + Metas)
     logger.info('Procesando hoja SF...')
-    sf_mapping = _process_sf_sheet(wb, anio_fiscal)
+    sf_mapping, sf_is_extended = _process_sf_sheet(wb, anio_fiscal)
     estadisticas['sf_procesadas'] = len(sf_mapping)
     estadisticas['metas_creadas'] = len(sf_mapping)
 
@@ -1072,7 +1168,7 @@ def process_initial_load(wb, importacion, user):
         importacion=importacion, user=user,
         sf_mapping=sf_mapping, rubros_cache=rubros_cache,
         clasificadores_cache=clasificadores_cache,
-        is_initial=True,
+        is_initial=True, sf_is_extended=sf_is_extended,
     )
 
     wb.close()

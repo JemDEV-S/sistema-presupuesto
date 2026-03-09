@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import {
   BarChart as BarChartIcon, ShowChart, PieChart as PieChartIcon,
-  StackedLineChart,
+  StackedLineChart, AlignHorizontalLeft,
 } from '@mui/icons-material';
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
@@ -16,6 +16,7 @@ import { formatCurrency } from '../../utils/formatters';
 
 const CHART_TYPE_ICONS = {
   bar: <BarChartIcon fontSize="small" />,
+  horizontalBar: <AlignHorizontalLeft fontSize="small" />,
   line: <ShowChart fontSize="small" />,
   area: <StackedLineChart fontSize="small" />,
   pie: <PieChartIcon fontSize="small" />,
@@ -23,9 +24,32 @@ const CHART_TYPE_ICONS = {
 
 const CHART_TYPE_LABELS = {
   bar: 'Barras',
+  horizontalBar: 'Barras Horizontales',
   line: 'Líneas',
   area: 'Área',
   pie: 'Circular',
+};
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  const fullName = payload[0]?.payload?.fullName || label;
+  return (
+    <Box sx={{ bgcolor: 'background.paper', border: '1px solid #e0e0e0', borderRadius: 1, p: 1.5, maxWidth: 350 }}>
+      <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5, wordBreak: 'break-word' }}>
+        {fullName}
+      </Typography>
+      {payload.map((entry) => (
+        <Box key={entry.name} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+          <Typography variant="caption" sx={{ color: entry.color }}>
+            {entry.name}:
+          </Typography>
+          <Typography variant="caption" fontWeight={600}>
+            {formatCurrency(entry.value)}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  );
 };
 
 const formatYAxis = (value) => {
@@ -90,10 +114,10 @@ const ChartWrapper = ({
           <PieChart>
             <Pie
               data={pieData}
-              cx="50%"
+              cx="35%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={100}
+              innerRadius={50}
+              outerRadius={85}
               paddingAngle={2}
               dataKey="value"
             >
@@ -101,14 +125,43 @@ const ChartWrapper = ({
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <RechartsTooltip formatter={(value) => formatCurrency(value)} />
+            <RechartsTooltip content={<CustomTooltip />} />
             <Legend
               layout="vertical"
               align="right"
               verticalAlign="middle"
-              wrapperStyle={{ fontSize: 12 }}
+              wrapperStyle={{ fontSize: 11, maxWidth: '45%', lineHeight: '20px' }}
             />
           </PieChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    if (chartType === 'horizontalBar') {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+            <XAxis type="number" tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
+            <YAxis
+              type="category"
+              dataKey={nameKey}
+              tick={{ fontSize: 11 }}
+              width={150}
+            />
+            <RechartsTooltip content={<CustomTooltip />} />
+            <Legend />
+            {activeDataKeys.map((dk) => (
+              <Bar
+                key={dk.key}
+                dataKey={dk.key}
+                name={dk.label}
+                fill={dk.color}
+                radius={[0, 4, 4, 0]}
+                barSize={16}
+              />
+            ))}
+          </BarChart>
         </ResponsiveContainer>
       );
     }
@@ -125,7 +178,7 @@ const ChartWrapper = ({
             height={xAxisHeight}
           />
           <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 12 }} />
-          <RechartsTooltip formatter={(value) => formatCurrency(value)} />
+          <RechartsTooltip content={<CustomTooltip />} />
           <Legend />
           {activeDataKeys.map((dk) => {
             if (chartType === 'line') {

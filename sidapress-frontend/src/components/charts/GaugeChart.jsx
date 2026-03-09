@@ -60,7 +60,7 @@ const GaugeChart = ({ title, value = 0, subtitle, maxValue = 100 }) => {
               textAlign: 'center',
             }}
           >
-            <Typography variant="h4" fontWeight={700} color={color}>
+            <Typography variant="h6" fontWeight={700} color={color} sx={{ fontSize: '1.1rem' }}>
               {pct.toFixed(1)}%
             </Typography>
           </Box>

@@ -45,6 +45,7 @@ const presupuestoService = {
   getEjecuciones: (params) => api.get('/presupuesto/ejecuciones/', { params }),
 
   // CRUD Metas
+  getMeta: (id) => api.get(`/presupuesto/metas/${id}/`),
   getMetas: (params) => api.get('/presupuesto/metas/', { params }),
   createMeta: (data) => api.post('/presupuesto/metas/', data),
   updateMeta: (id, data) => api.patch(`/presupuesto/metas/${id}/`, data),

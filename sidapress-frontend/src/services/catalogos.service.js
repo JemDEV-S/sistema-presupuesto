@@ -12,6 +12,7 @@ const catalogosService = {
 
   // Unidades organicas
   getUnidades: (params) => api.get('/organizacion/unidades/', { params }),
+  getUnidadesByUrl: (url) => api.get(url),
 };
 
 export default catalogosService;

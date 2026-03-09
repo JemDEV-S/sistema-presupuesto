@@ -7,12 +7,13 @@ import {
   DialogContent, DialogActions, Snackbar, Alert,
 } from '@mui/material';
 import {
-  Search, AccountBalance, Add, Edit, Delete,
+  Search, AccountBalance, Add, Edit, Delete, Visibility,
 } from '@mui/icons-material';
 import presupuestoService from '../../services/presupuesto.service';
 import catalogosService from '../../services/catalogos.service';
 import api from '../../services/api';
 import useAuthStore, { selectHasPermission } from '../../store/authStore';
+import MetaDetailDialog from '../../components/dialogs/MetaDetailDialog';
 
 const formatMoney = (v) => {
   if (!v && v !== 0) return 'S/ 0.00';
@@ -27,7 +28,7 @@ const INITIAL_META_FORM = {
   codigo: '',
   nombre: '',
   finalidad: '',
-  tipo_meta: 'ACTIVIDAD',
+  tipo_meta: 'PRODUCTO',
   cantidad_meta_anual: 0,
   codigo_programa_pptal: '',
   codigo_producto_proyecto: '',
@@ -92,6 +93,9 @@ const PresupuestoPage = () => {
   const [clasDialogOpen, setClasDialogOpen] = useState(false);
   const [editingClasificador, setEditingClasificador] = useState(null);
   const [clasForm, setClasForm] = useState(INITIAL_CLASIFICADOR_FORM);
+
+  // Meta detail dialog
+  const [detailMeta, setDetailMeta] = useState(null);
 
   // Delete confirm dialog
   const [deleteDialog, setDeleteDialog] = useState({ open: false, type: '', id: null, nombre: '' });
@@ -205,7 +209,7 @@ const PresupuestoPage = () => {
       codigo: meta.codigo,
       nombre: meta.nombre,
       finalidad: meta.finalidad || '',
-      tipo_meta: meta.tipo_meta || 'ACTIVIDAD',
+      tipo_meta: meta.tipo_meta || 'PRODUCTO',
       cantidad_meta_anual: meta.cantidad_meta_anual || 0,
       codigo_programa_pptal: meta.codigo_programa_pptal || '',
       codigo_producto_proyecto: meta.codigo_producto_proyecto || '',
@@ -306,7 +310,6 @@ const PresupuestoPage = () => {
     return 'error';
   };
 
-  const showMetaActions = canEditMeta || canDeleteMeta;
   const showClasActions = canEditClasificador || canDeleteClasificador;
 
   return (
@@ -363,12 +366,12 @@ const PresupuestoPage = () => {
                   <TableCell><strong>Unidad Organica</strong></TableCell>
                   <TableCell align="right"><strong>Meta Anual</strong></TableCell>
                   <TableCell><strong>Estado</strong></TableCell>
-                  {showMetaActions && <TableCell align="center"><strong>Acciones</strong></TableCell>}
+                  <TableCell align="center"><strong>Acciones</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {metas.length === 0 ? (
-                  <TableRow><TableCell colSpan={showMetaActions ? 7 : 6} align="center">
+                  <TableRow><TableCell colSpan={7} align="center">
                     {metasLoading ? 'Cargando...' : 'No hay metas registradas'}
                   </TableCell></TableRow>
                 ) : metas.map((meta) => (
@@ -387,26 +390,30 @@ const PresupuestoPage = () => {
                       <Chip label={meta.is_active ? 'Activa' : 'Inactiva'}
                         color={meta.is_active ? 'success' : 'default'} size="small" />
                     </TableCell>
-                    {showMetaActions && (
-                      <TableCell align="center">
-                        {canEditMeta && (
-                          <Tooltip title="Editar">
-                            <IconButton size="small" color="primary"
-                              onClick={() => handleOpenEditMeta(meta)}>
-                              <Edit fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {canDeleteMeta && (
-                          <Tooltip title="Eliminar">
-                            <IconButton size="small" color="error"
-                              onClick={() => setDeleteDialog({ open: true, type: 'meta', id: meta.id, nombre: meta.nombre })}>
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                      </TableCell>
-                    )}
+                    <TableCell align="center">
+                      <Tooltip title="Ver detalle">
+                        <IconButton size="small" color="info"
+                          onClick={() => setDetailMeta(meta)}>
+                          <Visibility fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      {canEditMeta && (
+                        <Tooltip title="Editar">
+                          <IconButton size="small" color="primary"
+                            onClick={() => handleOpenEditMeta(meta)}>
+                            <Edit fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {canDeleteMeta && (
+                        <Tooltip title="Eliminar">
+                          <IconButton size="small" color="error"
+                            onClick={() => setDeleteDialog({ open: true, type: 'meta', id: meta.id, nombre: meta.nombre })}>
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -600,7 +607,7 @@ const PresupuestoPage = () => {
                 <InputLabel>Tipo Meta</InputLabel>
                 <Select value={metaForm.tipo_meta} label="Tipo Meta"
                   onChange={(e) => setMetaForm({ ...metaForm, tipo_meta: e.target.value })}>
-                  <MenuItem value="ACTIVIDAD">Actividad</MenuItem>
+                  <MenuItem value="PRODUCTO">Producto</MenuItem>
                   <MenuItem value="PROYECTO">Proyecto</MenuItem>
                 </Select>
               </FormControl>
@@ -733,6 +740,13 @@ const PresupuestoPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* ===== DIALOG: Detalle de Meta ===== */}
+      <MetaDetailDialog
+        open={!!detailMeta}
+        onClose={() => setDetailMeta(null)}
+        meta={detailMeta}
+      />
 
       {/* ===== SNACKBAR ===== */}
       <Snackbar open={snackbar.open} autoHideDuration={4000}
