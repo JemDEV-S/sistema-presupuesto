@@ -211,13 +211,15 @@ def get_ejecucion_por_unidad(anio_fiscal_id, allowed_unidad_ids=None):
     return resultado
 
 
-def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim', allowed_unidad_ids=None):
-    """Top metas por PIM o por avance."""
+def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim', allowed_unidad_ids=None, filters=None):
+    """Top metas por PIM o por avance. Acepta filtros opcionales."""
+    filters = filters or {}
+    if allowed_unidad_ids is not None:
+        filters['allowed_unidad_ids'] = allowed_unidad_ids
     qs = EjecucionPresupuestal.objects.filter(
         anio_fiscal_id=anio_fiscal_id
     )
-    if allowed_unidad_ids is not None:
-        qs = qs.filter(meta__unidad_organica_id__in=allowed_unidad_ids)
+    qs = _apply_ejecucion_filters(qs, filters)
     ejecuciones = qs.values(
         'meta_id',
         meta_codigo=F('meta__codigo'),
@@ -228,6 +230,7 @@ def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim', allowed_unidad_id
         nombre_programa_pptal=F('meta__nombre_programa_pptal'),
         nombre_producto_proyecto=F('meta__nombre_producto_proyecto'),
         nombre_actividad=F('meta__nombre_actividad'),
+        tipo_actividad=F('meta__tipo_actividad'),
         sec_func=F('meta__sec_func'),
         codigo_funcion=F('meta__codigo_funcion'),
         codigo_division_fn=F('meta__codigo_division_fn'),
@@ -247,8 +250,7 @@ def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim', allowed_unidad_id
             ejecucion__meta_id=ej['meta_id'],
             ejecucion__anio_fiscal_id=anio_fiscal_id,
         )
-        if allowed_unidad_ids is not None:
-            mensual_qs = mensual_qs.filter(ejecucion__meta__unidad_organica_id__in=allowed_unidad_ids)
+        mensual_qs = _apply_mensual_filters(mensual_qs, filters)
         mensual_totales = mensual_qs.aggregate(
             devengado=Sum('devengado'),
             girado=Sum('girado'),
@@ -274,6 +276,7 @@ def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim', allowed_unidad_id
             'nombre_programa_pptal': ej['nombre_programa_pptal'] or '',
             'nombre_producto_proyecto': ej['nombre_producto_proyecto'] or '',
             'nombre_actividad': ej['nombre_actividad'] or '',
+            'tipo_actividad': ej['tipo_actividad'] or '',
             'sec_func': ej['sec_func'],
             'cadena_funcional': cadena_funcional,
             'total_pia': float(pia),
@@ -291,7 +294,7 @@ def get_top_metas(anio_fiscal_id, limit=10, order='mayor_pim', allowed_unidad_id
     elif order == 'mayor_avance':
         resultado.sort(key=lambda x: x['avance_pct'], reverse=True)
 
-    return resultado[:limit]
+    return resultado[:limit] if limit > 0 else resultado
 
 
 def _apply_ejecucion_filters(qs, filters):
@@ -499,6 +502,7 @@ def get_ejecucion_por_rubro(anio_fiscal_id, filters=None):
         'rubro_id',
         rubro_codigo=F('rubro__codigo'),
         rubro_nombre=F('rubro__nombre'),
+        rubro_nombre_corto=F('rubro__nombre_corto'),
         fuente_codigo=F('rubro__fuente__codigo'),
         fuente_nombre=F('rubro__fuente__nombre'),
     ).annotate(
@@ -526,6 +530,7 @@ def get_ejecucion_por_rubro(anio_fiscal_id, filters=None):
             'rubro_id': r['rubro_id'],
             'rubro_codigo': r['rubro_codigo'],
             'rubro_nombre': r['rubro_nombre'],
+            'rubro_nombre_corto': r['rubro_nombre_corto'] or r['rubro_nombre'],
             'fuente_codigo': r['fuente_codigo'],
             'fuente_nombre': r['fuente_nombre'],
             'total_pia': float(r['total_pia'] or 0),

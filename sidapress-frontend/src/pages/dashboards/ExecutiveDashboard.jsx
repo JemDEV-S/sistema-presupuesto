@@ -130,7 +130,8 @@ const ExecutiveDashboard = () => {
 
   const rubroChartData = useMemo(() => {
     return (porRubro || []).map((item) => ({
-      name: item.rubro_nombre,
+      fullName: item.rubro_nombre,
+      name: item.rubro_nombre_corto || item.rubro_nombre,
       PIM: parseFloat(item.total_pim) || 0,
       Certificado: parseFloat(item.total_certificado) || 0,
       Devengado: parseFloat(item.total_devengado) || 0,

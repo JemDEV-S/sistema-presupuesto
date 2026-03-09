@@ -26,7 +26,7 @@ import {
   Business,
   Category,
   AccountTree,
-  ListAlt,
+  Engineering,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
@@ -38,7 +38,7 @@ const dashboardItems = [
   { text: 'Unidad Orgánica', icon: <Business />, path: '/dashboard/unidad-organica' },
   { text: 'Rubros', icon: <Category />, path: '/dashboard/rubros' },
   { text: 'Tipo Proyecto', icon: <AccountTree />, path: '/dashboard/tipo-proyecto' },
-  { text: 'Clasificadores', icon: <ListAlt />, path: '/dashboard/clasificadores' },
+  { text: 'Proyectos', icon: <Engineering />, path: '/dashboard/proyectos' },
 ];
 
 const menuItems = [

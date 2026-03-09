@@ -149,8 +149,8 @@ def dashboard_resumen(request):
     anio_obj = _resolve_anio(request)
     if not anio_obj:
         return Response({'detail': 'No hay año fiscal activo.'}, status=400)
-    allowed = _get_allowed_unidad_ids(request.user)
-    resumen = get_resumen_general(anio_obj.id, allowed_unidad_ids=allowed)
+    filters = _extract_filters(request)
+    resumen = get_resumen_filtrado(anio_obj.id, filters=filters)
     resumen['anio'] = anio_obj.anio
     return Response(resumen)
 
@@ -203,8 +203,8 @@ def dashboard_top_metas(request):
         return Response([])
     limit = int(request.query_params.get('limit', 10))
     order = request.query_params.get('order', 'mayor_pim')
-    allowed = _get_allowed_unidad_ids(request.user)
-    return Response(get_top_metas(anio_obj.id, limit=limit, order=order, allowed_unidad_ids=allowed))
+    filters = _extract_filters(request)
+    return Response(get_top_metas(anio_obj.id, limit=limit, order=order, filters=filters))
 
 
 def _extract_filters(request):

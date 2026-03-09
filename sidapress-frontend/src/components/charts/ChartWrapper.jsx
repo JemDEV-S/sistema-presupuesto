@@ -10,7 +10,7 @@ import {
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend,
-  ResponsiveContainer,
+  ResponsiveContainer, LabelList,
 } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -56,6 +56,16 @@ const formatYAxis = (value) => {
   if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
   return value;
+};
+
+const formatLabelValue = (value) => {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+  return value;
+};
+
+const renderPieLabel = ({ name, value, percent }) => {
+  return `${name}: ${formatLabelValue(value)} (${(percent * 100).toFixed(1)}%)`;
 };
 
 const ChartWrapper = ({
@@ -120,6 +130,8 @@ const ChartWrapper = ({
               outerRadius={85}
               paddingAngle={2}
               dataKey="value"
+              label={renderPieLabel}
+              labelLine={{ stroke: '#999', strokeWidth: 1 }}
             >
               {pieData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -159,7 +171,9 @@ const ChartWrapper = ({
                 fill={dk.color}
                 radius={[0, 4, 4, 0]}
                 barSize={16}
-              />
+              >
+                <LabelList dataKey={dk.key} position="right" formatter={formatLabelValue} style={{ fontSize: 10, fill: '#555' }} />
+              </Bar>
             ))}
           </BarChart>
         </ResponsiveContainer>
@@ -215,7 +229,9 @@ const ChartWrapper = ({
                 name={dk.label}
                 fill={dk.color}
                 radius={[4, 4, 0, 0]}
-              />
+              >
+                <LabelList dataKey={dk.key} position="top" formatter={formatLabelValue} style={{ fontSize: 10, fill: '#555' }} />
+              </Bar>
             );
           })}
         </ChartComponent>

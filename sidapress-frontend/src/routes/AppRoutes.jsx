@@ -6,7 +6,7 @@ import ExecutiveDashboard from '../pages/dashboards/ExecutiveDashboard';
 import UnidadDashboard from '../pages/dashboards/UnidadDashboard';
 import RubrosDashboard from '../pages/dashboards/RubrosDashboard';
 import TipoProyectoDashboard from '../pages/dashboards/TipoProyectoDashboard';
-import ClasificadoresDashboard from '../pages/dashboards/ClasificadoresDashboard';
+import ProyectosDashboard from '../pages/dashboards/ProyectosDashboard';
 import ImportPage from '../pages/admin/ImportPage';
 import AlertsPage from '../pages/admin/AlertsPage';
 import UsersPage from '../pages/admin/UsersPage';
@@ -33,7 +33,7 @@ const AppRoutes = () => {
       <Route path="/dashboard/unidad-organica" element={<PrivateLayout><UnidadDashboard /></PrivateLayout>} />
       <Route path="/dashboard/rubros" element={<PrivateLayout><RubrosDashboard /></PrivateLayout>} />
       <Route path="/dashboard/tipo-proyecto" element={<PrivateLayout><TipoProyectoDashboard /></PrivateLayout>} />
-      <Route path="/dashboard/clasificadores" element={<PrivateLayout><ClasificadoresDashboard /></PrivateLayout>} />
+      <Route path="/dashboard/proyectos" element={<PrivateLayout><ProyectosDashboard /></PrivateLayout>} />
       <Route path="/presupuesto" element={<PrivateLayout><PresupuestoPage /></PrivateLayout>} />
       <Route path="/importacion" element={<PrivateLayout><ImportPage /></PrivateLayout>} />
       <Route path="/alertas" element={<PrivateLayout><AlertsPage /></PrivateLayout>} />
