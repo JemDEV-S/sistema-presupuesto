@@ -17,8 +17,15 @@ var MIME_TYPES = {
   '.woff2': 'font/woff2',
 };
 
+var BASE_PATH = '/scp';
+
 var server = http.createServer(function(req, res) {
   var url = req.url.split('?')[0];
+
+  // Quitar el prefijo /scp de la URL para buscar en dist/
+  if (url.startsWith(BASE_PATH)) {
+    url = url.substring(BASE_PATH.length) || '/';
+  }
 
   var filePath = path.join(DIST, url === '/' ? 'index.html' : url);
 
