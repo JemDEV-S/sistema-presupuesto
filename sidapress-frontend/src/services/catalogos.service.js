@@ -13,6 +13,7 @@ const catalogosService = {
   // Unidades organicas
   getUnidades: (params) => api.get('/organizacion/unidades/', { params }),
   getUnidadesByUrl: (url) => api.get(url),
+  getUnidadesTree: () => api.get('/organizacion/unidades/tree/'),
 };
 
 export default catalogosService;

@@ -207,12 +207,34 @@ def dashboard_top_metas(request):
     return Response(get_top_metas(anio_obj.id, limit=limit, order=order, filters=filters))
 
 
+def _resolve_unidad_codigos(unidad_codigo, incluir_hijos=False):
+    """Resuelve un código de unidad a una lista de códigos incluyendo hijos si se solicita."""
+    if not incluir_hijos:
+        return None
+    try:
+        unidad = UnidadOrganica.objects.get(codigo=unidad_codigo, is_active=True)
+    except UnidadOrganica.DoesNotExist:
+        return None
+    hijos = unidad.get_hijos_recursivo()
+    codigos = [unidad.codigo] + [h.codigo for h in hijos]
+    return codigos
+
+
 def _extract_filters(request):
     """Extrae filtros comunes de query params. Acepta códigos (string) o IDs numéricos.
     Inyecta filtro de seguridad por unidades permitidas del usuario."""
     filters = {}
+    incluir_hijos = request.query_params.get('incluir_hijos', '').lower() in ('true', '1', 'yes')
     if request.query_params.get('unidad_id'):
-        filters['unidad_codigo'] = request.query_params['unidad_id']
+        unidad_codigo = request.query_params['unidad_id']
+        if incluir_hijos:
+            codigos = _resolve_unidad_codigos(unidad_codigo, incluir_hijos=True)
+            if codigos:
+                filters['unidad_codigos'] = codigos
+            else:
+                filters['unidad_codigo'] = unidad_codigo
+        else:
+            filters['unidad_codigo'] = unidad_codigo
     if request.query_params.get('fuente_id'):
         filters['fuente_codigo'] = request.query_params['fuente_id']
     if request.query_params.get('rubro_id'):
@@ -260,6 +282,10 @@ def dashboard_unidad_metas(request):
         return Response([])
     if not _validate_unidad_access(request.user, unidad_id):
         return Response({'detail': 'No tiene acceso a esta unidad.'}, status=403)
+    incluir_hijos = request.query_params.get('incluir_hijos', '').lower() in ('true', '1', 'yes')
+    if incluir_hijos:
+        codigos = _resolve_unidad_codigos(unidad_id, incluir_hijos=True)
+        return Response(get_metas_por_unidad(anio_obj.id, codigos or unidad_id))
     return Response(get_metas_por_unidad(anio_obj.id, unidad_id))
 
 
@@ -275,6 +301,10 @@ def dashboard_unidad_clasificadores(request):
         return Response([])
     if not _validate_unidad_access(request.user, unidad_id):
         return Response({'detail': 'No tiene acceso a esta unidad.'}, status=403)
+    incluir_hijos = request.query_params.get('incluir_hijos', '').lower() in ('true', '1', 'yes')
+    if incluir_hijos:
+        codigos = _resolve_unidad_codigos(unidad_id, incluir_hijos=True)
+        return Response(get_clasificadores_por_unidad(anio_obj.id, codigos or unidad_id))
     return Response(get_clasificadores_por_unidad(anio_obj.id, unidad_id))
 
 

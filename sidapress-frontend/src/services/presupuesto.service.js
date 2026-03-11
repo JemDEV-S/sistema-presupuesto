@@ -18,10 +18,10 @@ const presupuestoService = {
   // Dashboard por Unidad Orgánica
   getUnidadDetalle: (anio, unidadId, filters = {}) =>
     api.get('/presupuesto/dashboard/unidad-detalle/', { params: { anio, unidad_id: unidadId, ...filters } }),
-  getUnidadMetas: (anio, unidadId) =>
-    api.get('/presupuesto/dashboard/unidad-metas/', { params: { anio, unidad_id: unidadId } }),
-  getUnidadClasificadores: (anio, unidadId) =>
-    api.get('/presupuesto/dashboard/unidad-clasificadores/', { params: { anio, unidad_id: unidadId } }),
+  getUnidadMetas: (anio, unidadId, filters = {}) =>
+    api.get('/presupuesto/dashboard/unidad-metas/', { params: { anio, unidad_id: unidadId, ...filters } }),
+  getUnidadClasificadores: (anio, unidadId, filters = {}) =>
+    api.get('/presupuesto/dashboard/unidad-clasificadores/', { params: { anio, unidad_id: unidadId, ...filters } }),
 
   // Dashboard por Rubros
   getPorRubro: (anio, filters = {}) =>

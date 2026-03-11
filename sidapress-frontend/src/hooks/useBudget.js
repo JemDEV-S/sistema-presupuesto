@@ -52,18 +52,18 @@ export const useUnidadDetalle = (anio, unidadId, filters = {}) => {
   });
 };
 
-export const useUnidadMetas = (anio, unidadId) => {
+export const useUnidadMetas = (anio, unidadId, filters = {}) => {
   return useQuery({
-    queryKey: ['unidad-metas', anio, unidadId],
-    queryFn: () => presupuestoService.getUnidadMetas(anio, unidadId).then(r => r.data),
+    queryKey: ['unidad-metas', anio, unidadId, filters],
+    queryFn: () => presupuestoService.getUnidadMetas(anio, unidadId, filters).then(r => r.data),
     enabled: !!unidadId,
   });
 };
 
-export const useUnidadClasificadores = (anio, unidadId) => {
+export const useUnidadClasificadores = (anio, unidadId, filters = {}) => {
   return useQuery({
-    queryKey: ['unidad-clasificadores', anio, unidadId],
-    queryFn: () => presupuestoService.getUnidadClasificadores(anio, unidadId).then(r => r.data),
+    queryKey: ['unidad-clasificadores', anio, unidadId, filters],
+    queryFn: () => presupuestoService.getUnidadClasificadores(anio, unidadId, filters).then(r => r.data),
     enabled: !!unidadId,
   });
 };

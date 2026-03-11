@@ -21,3 +21,11 @@ class UnidadOrganicaViewSet(viewsets.ModelViewSet):
         ).order_by('codigo')
         serializer = UnidadOrganicaTreeSerializer(raices, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def hijos(self, request, pk=None):
+        """Retorna los hijos directos de una unidad orgánica."""
+        unidad = self.get_object()
+        hijos = unidad.hijos.filter(is_active=True).order_by('codigo')
+        serializer = UnidadOrganicaSerializer(hijos, many=True)
+        return Response(serializer.data)

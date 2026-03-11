@@ -2,18 +2,19 @@ import { useState, useMemo, useEffect } from 'react';
 import {
   Box, Typography, Grid, FormControl, InputLabel, Select, MenuItem,
   CircularProgress, Card, CardContent, Autocomplete, TextField, Chip,
-  IconButton, Tooltip,
+  IconButton, Tooltip, FormControlLabel, Switch,
 } from '@mui/material';
 import {
   AccountBalance, TrendingUp, Receipt, Savings,
   AssignmentTurnedIn, Speed, Flag, Business, Visibility,
+  SubdirectoryArrowRight,
 } from '@mui/icons-material';
 import useAuthStore from '../../store/authStore';
 import {
   useUnidadDetalle, useUnidadMetas, useUnidadClasificadores,
   usePorUnidad, useTendenciaFiltrada,
 } from '../../hooks/useBudget';
-import { useUserUnidades } from '../../hooks/useUserUnidades';
+import { useUserUnidades, useUnidadesTree } from '../../hooks/useUserUnidades';
 import KPICard from '../../components/widgets/KPICard';
 import GaugeChart from '../../components/charts/GaugeChart';
 import ChartWrapper from '../../components/charts/ChartWrapper';
@@ -22,22 +23,65 @@ import SortableTable, { ProgressCell } from '../../components/tables/SortableTab
 import MetaDetailDialog from '../../components/dialogs/MetaDetailDialog';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 
+/**
+ * Aplana el árbol de unidades en una lista con indentación para el Autocomplete.
+ * Cada opción tiene: value (codigo), label (nombre), nivel, hasChildren.
+ */
+const flattenTree = (nodes, depth = 0) => {
+  const result = [];
+  for (const node of nodes) {
+    const prefix = depth > 0 ? '\u2003'.repeat(depth) + '└ ' : '';
+    result.push({
+      value: node.codigo,
+      label: node.nombre,
+      displayLabel: `${prefix}${node.nombre}`,
+      nivel: node.nivel,
+      depth,
+      hasChildren: node.children && node.children.length > 0,
+    });
+    if (node.children && node.children.length > 0) {
+      result.push(...flattenTree(node.children, depth + 1));
+    }
+  }
+  return result;
+};
+
 const UnidadDashboard = () => {
   const user = useAuthStore((state) => state.user);
   const { isGlobalAccess, filterUnidadOptions, defaultCodigo } = useUserUnidades();
   const [anio, setAnio] = useState(2026);
   const [unidadId, setUnidadId] = useState(defaultCodigo || '');
+  const [incluirHijos, setIncluirHijos] = useState(true);
   const [detailMeta, setDetailMeta] = useState(null);
 
   const { data: unidades } = usePorUnidad(anio);
+  const { data: unidadesTree } = useUnidadesTree();
 
+  // Opciones jerárquicas del árbol, filtradas por permisos
+  const treeOptions = useMemo(() => {
+    if (!unidadesTree) return [];
+    const flat = flattenTree(unidadesTree);
+    return filterUnidadOptions(flat);
+  }, [unidadesTree, filterUnidadOptions]);
+
+  // Fallback a opciones planas si el árbol no carga
   const unidadOptions = useMemo(() => {
+    if (treeOptions.length > 0) return treeOptions;
     const allOptions = (unidades || []).map((u) => ({
       value: u.unidad_codigo,
       label: u.unidad_nombre,
+      displayLabel: u.unidad_nombre,
+      depth: 0,
+      hasChildren: false,
     }));
     return filterUnidadOptions(allOptions);
-  }, [unidades, filterUnidadOptions]);
+  }, [treeOptions, unidades, filterUnidadOptions]);
+
+  // La unidad seleccionada actual
+  const selectedUnidad = useMemo(
+    () => unidadOptions.find((u) => u.value === unidadId) || null,
+    [unidadOptions, unidadId]
+  );
 
   useEffect(() => {
     if (!unidadId && unidadOptions.length === 1) {
@@ -45,11 +89,18 @@ const UnidadDashboard = () => {
     }
   }, [unidadOptions, unidadId]);
 
-  const filters = useMemo(() => (unidadId ? { unidad_id: unidadId } : {}), [unidadId]);
+  // Filtros que incluyen incluir_hijos
+  const hijosParam = incluirHijos && selectedUnidad?.hasChildren;
+  const filters = useMemo(() => {
+    if (!unidadId) return {};
+    const f = { unidad_id: unidadId };
+    if (hijosParam) f.incluir_hijos = true;
+    return f;
+  }, [unidadId, hijosParam]);
 
   const { data: resumen, isLoading } = useUnidadDetalle(anio, unidadId, filters);
-  const { data: metas } = useUnidadMetas(anio, unidadId);
-  const { data: clasificadores } = useUnidadClasificadores(anio, unidadId);
+  const { data: metas } = useUnidadMetas(anio, unidadId, hijosParam ? { incluir_hijos: true } : {});
+  const { data: clasificadores } = useUnidadClasificadores(anio, unidadId, hijosParam ? { incluir_hijos: true } : {});
   const { data: tendencia } = useTendenciaFiltrada(anio, filters);
 
   const mesActual = new Date().getMonth() + 1;
@@ -73,72 +124,89 @@ const UnidadDashboard = () => {
     }));
   }, [tendencia]);
 
-  const metasColumns = [
-    { key: 'meta_codigo', label: 'Código', sortable: true },
-    {
-      key: 'meta_nombre', label: 'Meta', sortable: true,
-      render: (val, row) => (
-        <Box>
-          <Typography variant="body2">{val}</Typography>
-          {row?.finalidad && (
-            <Typography variant="caption" color="text.secondary" display="block">
-              {row.finalidad}
-            </Typography>
-          )}
-        </Box>
-      ),
-    },
-    {
-      key: 'tipo_meta', label: 'Tipo', sortable: true,
-      render: (val) => (
-        <Chip
-          label={val === 'PROYECTO' ? 'Proyecto' : 'Producto'}
-          size="small"
-          color={val === 'PROYECTO' ? 'warning' : 'info'}
-          variant="outlined"
-          sx={{ fontSize: 11 }}
-        />
-      ),
-    },
-    {
-      key: 'cadena_funcional', label: 'Cad. Funcional', sortable: true,
-      render: (val) => <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>{val || '-'}</Typography>,
-    },
-    {
-      key: 'nombre_programa_pptal', label: 'Prog. Presupuestal', sortable: true,
-      render: (val) => <Typography variant="caption">{val || '-'}</Typography>,
-    },
-    { key: 'total_pia', label: 'PIA', align: 'right', sortable: true, format: formatCurrency },
-    { key: 'total_pim', label: 'PIM', align: 'right', sortable: true, format: formatCurrency },
-    { key: 'total_certificado', label: 'Certificado', align: 'right', sortable: true, format: formatCurrency },
-    { key: 'total_devengado', label: 'Devengado', align: 'right', sortable: true, format: formatCurrency },
-    { key: 'total_girado', label: 'Girado', align: 'right', sortable: true, format: formatCurrency },
-    {
-      key: 'avance_pct', label: 'Avance', align: 'center', sortable: true,
-      headerSx: { minWidth: 160 },
-      render: (val) => <ProgressCell value={val} />,
-    },
-    {
-      key: 'meta_id', label: 'Acciones', align: 'center', sortable: false,
-      render: (val, row) => (
-        <Tooltip title="Ver detalle">
-          <IconButton size="small" color="info"
-            onClick={() => setDetailMeta({
-              id: row.meta_id,
-              codigo: row.meta_codigo,
-              nombre: row.meta_nombre,
-              tipo_meta: row.tipo_meta,
-              finalidad: row.finalidad,
-              nombre_programa_pptal: row.nombre_programa_pptal,
-              nombre_producto_proyecto: row.nombre_producto_proyecto,
-              cadena_funcional: row.cadena_funcional,
-            })}>
-            <Visibility fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      ),
-    },
-  ];
+  const metasColumns = useMemo(() => {
+    const cols = [
+      { key: 'meta_codigo', label: 'Código', sortable: true },
+      {
+        key: 'meta_nombre', label: 'Meta', sortable: true,
+        render: (val, row) => (
+          <Box>
+            <Typography variant="body2">{val}</Typography>
+            {row?.finalidad && (
+              <Typography variant="caption" color="text.secondary" display="block">
+                {row.finalidad}
+              </Typography>
+            )}
+          </Box>
+        ),
+      },
+      {
+        key: 'tipo_meta', label: 'Tipo', sortable: true,
+        render: (val) => (
+          <Chip
+            label={val === 'PROYECTO' ? 'Proyecto' : 'Producto'}
+            size="small"
+            color={val === 'PROYECTO' ? 'warning' : 'info'}
+            variant="outlined"
+            sx={{ fontSize: 11 }}
+          />
+        ),
+      },
+    ];
+
+    // Mostrar columna de unidad cuando se incluyen hijos
+    if (hijosParam) {
+      cols.push({
+        key: 'unidad_nombre', label: 'Unidad', sortable: true,
+        render: (val) => (
+          <Typography variant="caption" sx={{ fontSize: 11, lineHeight: 1.3 }}>{val || '-'}</Typography>
+        ),
+      });
+    }
+
+    cols.push(
+      {
+        key: 'cadena_funcional', label: 'Cad. Funcional', sortable: true,
+        render: (val) => <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>{val || '-'}</Typography>,
+      },
+      {
+        key: 'nombre_programa_pptal', label: 'Prog. Presupuestal', sortable: true,
+        render: (val) => <Typography variant="caption">{val || '-'}</Typography>,
+      },
+      { key: 'total_pia', label: 'PIA', align: 'right', sortable: true, format: formatCurrency },
+      { key: 'total_pim', label: 'PIM', align: 'right', sortable: true, format: formatCurrency },
+      { key: 'total_certificado', label: 'Certificado', align: 'right', sortable: true, format: formatCurrency },
+      { key: 'total_devengado', label: 'Devengado', align: 'right', sortable: true, format: formatCurrency },
+      { key: 'total_girado', label: 'Girado', align: 'right', sortable: true, format: formatCurrency },
+      {
+        key: 'avance_pct', label: 'Avance', align: 'center', sortable: true,
+        headerSx: { minWidth: 160 },
+        render: (val) => <ProgressCell value={val} />,
+      },
+      {
+        key: 'meta_id', label: 'Acciones', align: 'center', sortable: false,
+        render: (_val, row) => (
+          <Tooltip title="Ver detalle">
+            <IconButton size="small" color="info"
+              onClick={() => setDetailMeta({
+                id: row.meta_id,
+                codigo: row.meta_codigo,
+                nombre: row.meta_nombre,
+                tipo_meta: row.tipo_meta,
+                finalidad: row.finalidad,
+                nombre_programa_pptal: row.nombre_programa_pptal,
+                nombre_producto_proyecto: row.nombre_producto_proyecto,
+                cadena_funcional: row.cadena_funcional,
+              })}>
+              <Visibility fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        ),
+      },
+    );
+
+    return cols;
+  }, [hijosParam]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -153,7 +221,7 @@ const UnidadDashboard = () => {
             Análisis detallado de ejecución presupuestal por unidad - {anio}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <InputLabel>Año</InputLabel>
             <Select value={anio} label="Año" onChange={(e) => setAnio(e.target.value)}>
@@ -163,15 +231,58 @@ const UnidadDashboard = () => {
           </FormControl>
           <Autocomplete
             size="small"
-            sx={{ minWidth: 320 }}
-            options={isGlobalAccess ? [{ value: '', label: 'Seleccione una unidad' }, ...unidadOptions] : unidadOptions}
+            sx={{ minWidth: 380 }}
+            options={isGlobalAccess ? [{ value: '', label: 'Seleccione una unidad', displayLabel: 'Seleccione una unidad', depth: 0, hasChildren: false }, ...unidadOptions] : unidadOptions}
             getOptionLabel={(opt) => opt.label || ''}
             isOptionEqualToValue={(opt, val) => opt.value === val.value}
-            value={unidadOptions.find((u) => u.value === unidadId) || null}
+            value={selectedUnidad}
             onChange={(_, newVal) => setUnidadId(newVal?.value ?? '')}
             renderInput={(params) => <TextField {...params} label="Unidad Orgánica" />}
+            renderOption={(props, option) => (
+              <li {...props} key={option.value}>
+                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                  {option.depth > 0 && (
+                    <SubdirectoryArrowRight
+                      sx={{ fontSize: 16, color: 'text.disabled', ml: (option.depth - 1) * 2, mr: 0.5 }}
+                    />
+                  )}
+                  <Box>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: option.depth === 0 ? 600 : 400 }}
+                    >
+                      {option.label}
+                    </Typography>
+                    {option.hasChildren && (
+                      <Typography variant="caption" color="text.secondary">
+                        Tiene sub-unidades
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </li>
+            )}
             noOptionsText="Sin resultados"
           />
+          {selectedUnidad?.hasChildren && (
+            <Tooltip title="Incluir datos de las sub-unidades dependientes">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={incluirHijos}
+                    onChange={(e) => setIncluirHijos(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2" noWrap>
+                    Incluir sub-unidades
+                  </Typography>
+                }
+                sx={{ ml: 0 }}
+              />
+            </Tooltip>
+          )}
         </Box>
       </Box>
 
@@ -271,7 +382,7 @@ const UnidadDashboard = () => {
 
           {/* Metas Table */}
           <SortableTable
-            title={`Metas de la Unidad (${metas?.length || 0})`}
+            title={`Metas de la Unidad${hijosParam ? ' (incluye sub-unidades)' : ''} (${metas?.length || 0})`}
             columns={metasColumns}
             data={metas || []}
             defaultSort={{ key: 'total_pim', direction: 'desc' }}

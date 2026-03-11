@@ -302,7 +302,9 @@ def _apply_ejecucion_filters(qs, filters):
     Usa 'codigo' (string) para unidad y fuente, ya que el frontend envía códigos."""
     if filters.get('allowed_unidad_ids') is not None:
         qs = qs.filter(meta__unidad_organica_id__in=filters['allowed_unidad_ids'])
-    if filters.get('unidad_codigo'):
+    if filters.get('unidad_codigos'):
+        qs = qs.filter(meta__unidad_organica__codigo__in=filters['unidad_codigos'])
+    elif filters.get('unidad_codigo'):
         qs = qs.filter(meta__unidad_organica__codigo=filters['unidad_codigo'])
     if filters.get('fuente_codigo'):
         qs = qs.filter(rubro__fuente__codigo=filters['fuente_codigo'])
@@ -322,7 +324,9 @@ def _apply_mensual_filters(qs, filters):
     Usa 'codigo' (string) para unidad y fuente, ya que el frontend envía códigos."""
     if filters.get('allowed_unidad_ids') is not None:
         qs = qs.filter(ejecucion__meta__unidad_organica_id__in=filters['allowed_unidad_ids'])
-    if filters.get('unidad_codigo'):
+    if filters.get('unidad_codigos'):
+        qs = qs.filter(ejecucion__meta__unidad_organica__codigo__in=filters['unidad_codigos'])
+    elif filters.get('unidad_codigo'):
         qs = qs.filter(ejecucion__meta__unidad_organica__codigo=filters['unidad_codigo'])
     if filters.get('fuente_codigo'):
         qs = qs.filter(ejecucion__rubro__fuente__codigo=filters['fuente_codigo'])
@@ -369,7 +373,9 @@ def get_resumen_filtrado(anio_fiscal_id, filters=None):
     metas_qs = Meta.objects.filter(anio_fiscal_id=anio_fiscal_id, is_active=True)
     if filters.get('allowed_unidad_ids') is not None:
         metas_qs = metas_qs.filter(unidad_organica_id__in=filters['allowed_unidad_ids'])
-    if filters.get('unidad_codigo'):
+    if filters.get('unidad_codigos'):
+        metas_qs = metas_qs.filter(unidad_organica__codigo__in=filters['unidad_codigos'])
+    elif filters.get('unidad_codigo'):
         metas_qs = metas_qs.filter(unidad_organica__codigo=filters['unidad_codigo'])
     if filters.get('tipo_meta'):
         metas_qs = metas_qs.filter(tipo_meta=filters['tipo_meta'])
@@ -391,11 +397,14 @@ def get_resumen_filtrado(anio_fiscal_id, filters=None):
     }
 
 
-def get_metas_por_unidad(anio_fiscal_id, unidad_codigo):
-    """Lista de metas de una unidad orgánica con detalle de ejecución."""
+def get_metas_por_unidad(anio_fiscal_id, unidad_codigos):
+    """Lista de metas de una o varias unidades orgánicas con detalle de ejecución.
+    unidad_codigos puede ser un string (un código) o una lista de códigos."""
+    if isinstance(unidad_codigos, str):
+        unidad_codigos = [unidad_codigos]
     ejecuciones = EjecucionPresupuestal.objects.filter(
         anio_fiscal_id=anio_fiscal_id,
-        meta__unidad_organica__codigo=unidad_codigo,
+        meta__unidad_organica__codigo__in=unidad_codigos,
     ).values(
         'meta_id',
         meta_codigo=F('meta__codigo'),
@@ -408,6 +417,8 @@ def get_metas_por_unidad(anio_fiscal_id, unidad_codigo):
         codigo_funcion=F('meta__codigo_funcion'),
         codigo_division_fn=F('meta__codigo_division_fn'),
         codigo_grupo_fn=F('meta__codigo_grupo_fn'),
+        unidad_codigo=F('meta__unidad_organica__codigo'),
+        unidad_nombre=F('meta__unidad_organica__nombre'),
     ).annotate(
         total_pia=Sum('pia'),
         total_pim=Sum('pim'),
@@ -445,6 +456,8 @@ def get_metas_por_unidad(anio_fiscal_id, unidad_codigo):
             'nombre_producto_proyecto': ej['nombre_producto_proyecto'] or '',
             'sec_func': ej['sec_func'],
             'cadena_funcional': cadena_funcional,
+            'unidad_codigo': ej['unidad_codigo'],
+            'unidad_nombre': ej['unidad_nombre'] or '',
             'total_pia': float(ej['total_pia'] or 0),
             'total_pim': float(pim),
             'total_certificado': float(ej['total_certificado'] or 0),
@@ -457,11 +470,14 @@ def get_metas_por_unidad(anio_fiscal_id, unidad_codigo):
     return resultado
 
 
-def get_clasificadores_por_unidad(anio_fiscal_id, unidad_codigo):
-    """Clasificadores de gasto para una unidad orgánica."""
+def get_clasificadores_por_unidad(anio_fiscal_id, unidad_codigos):
+    """Clasificadores de gasto para una o varias unidades orgánicas.
+    unidad_codigos puede ser un string (un código) o una lista de códigos."""
+    if isinstance(unidad_codigos, str):
+        unidad_codigos = [unidad_codigos]
     ejecuciones = EjecucionPresupuestal.objects.filter(
         anio_fiscal_id=anio_fiscal_id,
-        meta__unidad_organica__codigo=unidad_codigo,
+        meta__unidad_organica__codigo__in=unidad_codigos,
     ).values(
         generica=F('clasificador_gasto__generica'),
         nombre_generica=F('clasificador_gasto__nombre_generica'),
@@ -475,7 +491,7 @@ def get_clasificadores_por_unidad(anio_fiscal_id, unidad_codigo):
         pim = ej['total_pim'] or Decimal('0')
         devengado = EjecucionMensual.objects.filter(
             ejecucion__anio_fiscal_id=anio_fiscal_id,
-            ejecucion__meta__unidad_organica__codigo=unidad_codigo,
+            ejecucion__meta__unidad_organica__codigo__in=unidad_codigos,
             ejecucion__clasificador_gasto__generica=ej['generica'],
         ).aggregate(total=Sum('devengado'))['total'] or Decimal('0')
 

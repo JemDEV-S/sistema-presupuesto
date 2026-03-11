@@ -1,9 +1,11 @@
 import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import useAuthStore, {
   selectIsGlobalAccess,
   selectAllowedUnidades,
   selectDefaultUnidadCodigo,
 } from '../store/authStore';
+import catalogosService from '../services/catalogos.service';
 
 export const useUserUnidades = () => {
   const isGlobalAccess = useAuthStore(selectIsGlobalAccess);
@@ -40,4 +42,12 @@ export const useUserUnidades = () => {
     isUnidadAllowed,
     filterUnidadOptions,
   };
+};
+
+export const useUnidadesTree = () => {
+  return useQuery({
+    queryKey: ['unidades-tree'],
+    queryFn: () => catalogosService.getUnidadesTree().then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
 };
