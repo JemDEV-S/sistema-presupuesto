@@ -58,13 +58,12 @@ const ImportPage = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" fontWeight={700} gutterBottom>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
+      <Typography variant="h4" fontWeight={700} gutterBottom sx={{ fontSize: { xs: '1.3rem', sm: '1.5rem', md: '2.125rem' } }}>
         Importación de Excel MEF
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: 12, sm: 14 } }}>
         Sube archivos Excel del formato MEF para importar o actualizar datos presupuestales.
-        Los datos existentes se actualizarán automáticamente (metas, clasificadores, montos).
       </Typography>
 
       {/* Upload Card */}
@@ -162,7 +161,7 @@ const ImportPage = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>Historial de Importaciones</Typography>
-          <TableContainer component={Paper} variant="outlined">
+          <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>

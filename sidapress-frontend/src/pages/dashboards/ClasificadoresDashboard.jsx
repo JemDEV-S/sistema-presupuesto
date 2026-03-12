@@ -179,19 +179,19 @@ const ClasificadoresDashboard = () => {
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
         <Box>
-          <Typography variant="h4" fontWeight={700}>
-            <ListAlt sx={{ verticalAlign: 'middle', mr: 1 }} />
-            Dashboard por Clasificadores de Gasto
+          <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem', md: '2.125rem' } }}>
+            <ListAlt sx={{ verticalAlign: 'middle', mr: 1, fontSize: { xs: 22, sm: 30 } }} />
+            Dashboard por Clasificadores
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: 12, sm: 14 } }}>
             Análisis de ejecución por genérica y subgenérica de gasto - {anio}
           </Typography>
         </Box>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl size="small" sx={{ minWidth: 100 }}>
           <InputLabel>Año</InputLabel>
           <Select value={anio} label="Año" onChange={(e) => setAnio(e.target.value)}>
             <MenuItem value={2026}>2026</MenuItem>

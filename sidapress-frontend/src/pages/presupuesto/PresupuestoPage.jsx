@@ -313,13 +313,13 @@ const PresupuestoPage = () => {
   const showClasActions = canEditClasificador || canDeleteClasificador;
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 3, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AccountBalance color="primary" sx={{ fontSize: 32 }} />
-          <Typography variant="h4" fontWeight={700}>Presupuesto</Typography>
+          <AccountBalance color="primary" sx={{ fontSize: { xs: 24, sm: 32 } }} />
+          <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: '1.3rem', sm: '1.5rem', md: '2.125rem' } }}>Presupuesto</Typography>
         </Box>
-        <FormControl size="small" sx={{ minWidth: 180 }}>
+        <FormControl size="small" sx={{ minWidth: { xs: 140, sm: 180 } }}>
           <InputLabel>Ano Fiscal</InputLabel>
           <Select value={selectedAnio} label="Ano Fiscal"
             onChange={(e) => { setSelectedAnio(e.target.value); setMetasPage(0); setEjPage(0); }}>
@@ -343,19 +343,19 @@ const PresupuestoPage = () => {
       {/* ===== TAB METAS ===== */}
       {tab === 0 && (
         <>
-          <Paper sx={{ mb: 2, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Paper sx={{ mb: 2, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
             <TextField size="small" placeholder="Buscar metas..." value={metasSearch}
               onChange={(e) => { setMetasSearch(e.target.value); setMetasPage(0); }}
               InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
-              sx={{ minWidth: 300 }}
+              sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 300 } }}
             />
             {canCreateMeta && (
-              <Button variant="contained" startIcon={<Add />} onClick={handleOpenCreateMeta}>
+              <Button variant="contained" startIcon={<Add />} onClick={handleOpenCreateMeta} sx={{ whiteSpace: 'nowrap' }}>
                 Nueva Meta
               </Button>
             )}
           </Paper>
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
             {metasLoading && <LinearProgress />}
             <Table size="small">
               <TableHead>
@@ -432,10 +432,10 @@ const PresupuestoPage = () => {
             <TextField size="small" placeholder="Buscar por meta..." value={ejSearch}
               onChange={(e) => { setEjSearch(e.target.value); setEjPage(0); }}
               InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
-              sx={{ minWidth: 300 }}
+              sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 300 } }}
             />
           </Paper>
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
             {ejLoading && <LinearProgress />}
             <Table size="small">
               <TableHead>
@@ -494,19 +494,19 @@ const PresupuestoPage = () => {
       {/* ===== TAB CLASIFICADORES ===== */}
       {tab === 2 && (
         <>
-          <Paper sx={{ mb: 2, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Paper sx={{ mb: 2, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
             <TextField size="small" placeholder="Buscar clasificadores..." value={clasSearch}
               onChange={(e) => { setClasSearch(e.target.value); setClasPage(0); }}
               InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
-              sx={{ minWidth: 300 }}
+              sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 300 } }}
             />
             {canCreateClasificador && (
-              <Button variant="contained" startIcon={<Add />} onClick={handleOpenCreateClasificador}>
+              <Button variant="contained" startIcon={<Add />} onClick={handleOpenCreateClasificador} sx={{ whiteSpace: 'nowrap' }}>
                 Nuevo Clasificador
               </Button>
             )}
           </Paper>
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
             {clasLoading && <LinearProgress />}
             <Table size="small">
               <TableHead>

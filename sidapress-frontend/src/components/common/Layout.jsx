@@ -19,6 +19,7 @@ const Layout = ({ children }) => {
           flexGrow: 1,
           width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
           bgcolor: 'background.default',
+          overflowX: 'hidden',
         }}
       >
         <Toolbar />

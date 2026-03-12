@@ -192,12 +192,12 @@ const UsersPage = () => {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight={700}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 3, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+        <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: '1.3rem', sm: '1.5rem', md: '2.125rem' } }}>
           Gestión de Usuarios
         </Typography>
-        <Button variant="contained" startIcon={<Add />} onClick={handleOpenCreate}>
+        <Button variant="contained" startIcon={<Add />} onClick={handleOpenCreate} sx={{ whiteSpace: 'nowrap' }}>
           Nuevo Usuario
         </Button>
       </Box>
@@ -211,11 +211,11 @@ const UsersPage = () => {
           InputProps={{
             startAdornment: <InputAdornment position="start"><Search /></InputAdornment>,
           }}
-          sx={{ minWidth: 300 }}
+          sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 300 } }}
         />
       </Paper>
 
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -308,7 +308,7 @@ const UsersPage = () => {
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mt: 1 }}>
             <TextField label="Username" value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               required fullWidth disabled={!!editingUser} />

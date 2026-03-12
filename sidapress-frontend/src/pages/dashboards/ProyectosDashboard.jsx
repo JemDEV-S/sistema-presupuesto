@@ -173,19 +173,19 @@ const ProyectosDashboard = () => {
   const avanceEsperado = (mesActual / 12) * 100;
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
         <Box>
-          <Typography variant="h4" fontWeight={700}>
-            <Engineering sx={{ verticalAlign: 'middle', mr: 1 }} />
-            Dashboard de Proyectos de Inversión
+          <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem', md: '2.125rem' } }}>
+            <Engineering sx={{ verticalAlign: 'middle', mr: 1, fontSize: { xs: 24, sm: 30 } }} />
+            Proyectos de Inversión
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: 12, sm: 14 } }}>
             Monitoreo de ejecución presupuestal de proyectos - {anio}
           </Typography>
         </Box>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl size="small" sx={{ minWidth: 100 }}>
           <InputLabel>Año</InputLabel>
           <Select value={anio} label="Año" onChange={(e) => setAnio(e.target.value)}>
             <MenuItem value={2026}>2026</MenuItem>

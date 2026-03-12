@@ -57,7 +57,7 @@ const Navbar = ({ onToggleSidebar }) => {
           <MenuIcon />
         </IconButton>
 
-        <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
+        <Typography variant="h6" noWrap sx={{ flexGrow: 1, fontSize: { xs: 14, sm: 18 } }}>
           Sistema de Consulta Presupuestal
         </Typography>
 

@@ -37,9 +37,9 @@ const LoginPage = () => {
         background: 'linear-gradient(135deg, #1565c0 0%, #00897b 100%)',
       }}
     >
-      <Card sx={{ width: 400, mx: 2 }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h4" align="center" gutterBottom color="primary">
+      <Card sx={{ width: '100%', maxWidth: 400, mx: 2 }}>
+        <CardContent sx={{ p: { xs: 2.5, sm: 4 } }}>
+          <Typography variant="h5" align="center" gutterBottom color="primary">
             Consulta Presupuestal
           </Typography>
           <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>

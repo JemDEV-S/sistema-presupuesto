@@ -93,8 +93,8 @@ const AuditPage = () => {
   };
 
   return (
-    <Box>
-      <Typography variant="h4" fontWeight={700} sx={{ mb: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
+      <Typography variant="h4" fontWeight={700} sx={{ mb: 3, fontSize: { xs: '1.3rem', sm: '1.5rem', md: '2.125rem' } }}>
         Auditoría del Sistema
       </Typography>
 
@@ -169,7 +169,7 @@ const AuditPage = () => {
       </Paper>
 
       {/* Tabla de logs */}
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>

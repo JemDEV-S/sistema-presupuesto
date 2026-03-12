@@ -37,7 +37,7 @@ const FilterBar = ({ filters, values, onChange, collapsible = false }) => {
                 <Autocomplete
                   key={filter.name}
                   size="small"
-                  sx={{ minWidth: filter.width || 150 }}
+                  sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: filter.width || 150 } }}
                   options={allOptions}
                   getOptionLabel={(opt) => opt.label || ''}
                   isOptionEqualToValue={(opt, val) => opt.value === val.value}

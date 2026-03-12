@@ -45,11 +45,11 @@ const AlertsPage = () => {
   const warnings = activas.filter(a => a.nivel_severidad === 'WARNING');
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 3, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
         <Box>
-          <Typography variant="h4" fontWeight={700}>Alertas</Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: '1.3rem', sm: '1.5rem', md: '2.125rem' } }}>Alertas</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: 12, sm: 14 } }}>
             Monitoreo de alertas de ejecución presupuestal
           </Typography>
         </Box>
@@ -94,7 +94,7 @@ const AlertsPage = () => {
       {/* Tabla */}
       <Card>
         <CardContent>
-          <TableContainer component={Paper} variant="outlined">
+          <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>

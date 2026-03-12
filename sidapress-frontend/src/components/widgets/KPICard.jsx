@@ -11,13 +11,13 @@ const KPICard = ({ title, value, subtitle, icon: Icon, color = 'primary.main', t
 
   return (
     <Card sx={{ height: '100%' }}>
-      <CardContent>
+      <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               {title}
             </Typography>
-            <Typography variant="h5" fontWeight={700} color={color}>
+            <Typography variant="h5" fontWeight={700} color={color} sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' }, wordBreak: 'break-word' }}>
               {value}
             </Typography>
             {subtitle && (
@@ -37,7 +37,7 @@ const KPICard = ({ title, value, subtitle, icon: Icon, color = 'primary.main', t
                 display: 'flex', alignItems: 'center',
               }}
             >
-              <Icon sx={{ color, fontSize: 28 }} />
+              <Icon sx={{ color, fontSize: { xs: 22, sm: 28 } }} />
             </Box>
           )}
         </Box>

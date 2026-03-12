@@ -71,7 +71,7 @@ const SortableTable = ({
                 placeholder={searchPlaceholder}
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
-                sx={{ minWidth: 250 }}
+                sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 250 } }}
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -85,7 +85,7 @@ const SortableTable = ({
             )}
           </Box>
         )}
-        <TableContainer>
+        <TableContainer sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow>

@@ -36,7 +36,7 @@ const TopMetasTable = ({ data, title = 'Top Metas Presupuestales' }) => {
             placeholder="Buscar en metas..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{ minWidth: 250 }}
+            sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 250 } }}
             slotProps={{
               input: {
                 startAdornment: (
@@ -48,7 +48,7 @@ const TopMetasTable = ({ data, title = 'Top Metas Presupuestales' }) => {
             }}
           />
         </Box>
-        <TableContainer>
+        <TableContainer sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow>

@@ -142,7 +142,7 @@ const ChartWrapper = ({
               layout="vertical"
               align="right"
               verticalAlign="middle"
-              wrapperStyle={{ fontSize: 11, maxWidth: '45%', lineHeight: '20px' }}
+              wrapperStyle={{ fontSize: 10, maxWidth: '40%', lineHeight: '18px' }}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -152,14 +152,14 @@ const ChartWrapper = ({
     if (chartType === 'horizontalBar') {
       return (
         <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+          <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 5, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-            <XAxis type="number" tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
+            <XAxis type="number" tickFormatter={formatYAxis} tick={{ fontSize: 10 }} />
             <YAxis
               type="category"
               dataKey={nameKey}
-              tick={{ fontSize: 11 }}
-              width={150}
+              tick={{ fontSize: 10 }}
+              width={120}
             />
             <RechartsTooltip content={<CustomTooltip />} />
             <Legend />
@@ -184,7 +184,7 @@ const ChartWrapper = ({
 
     return (
       <ResponsiveContainer width="100%" height={height}>
-        <ChartComponent data={data} margin={{ top: 5, right: 30, left: 20, bottom: xAxisAngle ? 80 : 5 }}>
+        <ChartComponent data={data} margin={{ top: 5, right: 15, left: 10, bottom: xAxisAngle ? 80 : 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis
             dataKey={nameKey}
@@ -264,7 +264,7 @@ const ChartWrapper = ({
         {/* Selector de series */}
         <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 0.5 }}>
           {chartType === 'pie' ? (
-            <FormControl size="small" sx={{ minWidth: 150 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
               <Select
                 value={pieDataKey}
                 onChange={(e) => setPieDataKey(e.target.value)}
