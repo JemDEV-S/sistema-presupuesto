@@ -913,10 +913,60 @@ def _process_sheetgasto(rows, col_map, is_xlsx, anio_fiscal, importacion, user,
                     errors_log.append(f'Fila {row_num}: Meta sec_func={sec_func} no encontrada en SF')
                     continue
                 else:
-                    # En daily, si la meta no existe, skip
-                    stats['errors'] += 1
-                    errors_log.append(f'Fila {row_num}: Meta sec_func={sec_func} no existe en BD')
-                    continue
+                    # En daily, crear meta automáticamente si no existe
+                    prog_cod = data.get('programa_pptal_cod', '')
+                    prog_nom = data.get('programa_pptal_nom', '')
+                    prod_cod = data.get('producto_proyecto_cod', '')
+                    prod_nom = data.get('producto_proyecto_nom', '')
+                    act_cod = data.get('activ_obra_accinv_cod', '')
+                    act_nom = data.get('activ_obra_accinv_nom', '')
+                    func_cod = data.get('funcion_cod', '')
+                    div_cod = data.get('division_fn_cod', '')
+                    grupo_cod = data.get('grupo_fn_cod', '')
+                    final_cod = data.get('finalidad_cod', '')
+                    final_nom = data.get('finalidad_nom', '')
+                    tipo_prod_raw = data.get('tipo_prod_proy_nom', '')
+                    tipo_act_raw = data.get('tipo_act_obra_ac_nom', '')
+
+                    nombre_meta = act_nom or prod_nom or prog_nom or f'Meta {meta_codigo}'
+                    tipo_meta = 'PROYECTO' if tipo_prod_raw and 'PROYECTO' in tipo_prod_raw.upper() else 'PRODUCTO'
+
+                    meta_obj, _ = Meta.objects.update_or_create(
+                        anio_fiscal=anio_fiscal,
+                        codigo=meta_codigo,
+                        defaults={
+                            'nombre': nombre_meta[:500],
+                            'tipo_meta': tipo_meta,
+                            'cantidad_meta_anual': data['cant_meta_anual'],
+                            'finalidad': final_nom[:500] if final_nom else '',
+                            'sec_func': sec_func,
+                            'codigo_programa_pptal': prog_cod[:20] if prog_cod else '',
+                            'codigo_producto_proyecto': prod_cod[:20] if prod_cod else '',
+                            'codigo_actividad': act_cod[:20] if act_cod else '',
+                            'codigo_funcion': func_cod[:10] if func_cod else '',
+                            'codigo_division_fn': div_cod[:10] if div_cod else '',
+                            'codigo_grupo_fn': grupo_cod[:10] if grupo_cod else '',
+                            'codigo_finalidad': final_cod[:20] if final_cod else '',
+                            'nombre_programa_pptal': prog_nom[:300] if prog_nom else '',
+                            'nombre_producto_proyecto': prod_nom[:500] if prod_nom else '',
+                            'nombre_actividad': act_nom[:500] if act_nom else '',
+                            'tipo_producto_proyecto': tipo_prod_raw[:50] if tipo_prod_raw else '',
+                            'tipo_actividad': _normalize_tipo_actividad(tipo_act_raw),
+                            'codigo_unidad_medida': data.get('unidad_medida_cod', '')[:10],
+                            'nombre_unidad_medida': data.get('unidad_medida_nom', '')[:100],
+                        }
+                    )
+                    # Crear AvanceFisico asociado
+                    AvanceFisico.objects.get_or_create(
+                        meta=meta_obj,
+                        defaults={
+                            'cantidad_meta_semestral': data['cant_meta_sem'],
+                            'avance_fisico_anual': data['avan_fisico_anual'],
+                            'avance_fisico_semestral': data['avan_fisico_sem'],
+                        }
+                    )
+                    metas_cache[meta_key] = meta_obj
+                    logger.info(f'Meta {meta_codigo} (sec_func={sec_func}) creada automáticamente desde daily import')
 
             meta = metas_cache[meta_key]
 
@@ -989,14 +1039,8 @@ def _process_sheetgasto(rows, col_map, is_xlsx, anio_fiscal, importacion, user,
                 if rubro_cod in rubros_cache:
                     rubro = rubros_cache[rubro_cod]
                 else:
-                    # En daily, intentar obtener de BD
-                    try:
-                        rubro = Rubro.objects.get(codigo=rubro_cod[:10])
-                        rubros_cache[rubro_cod] = rubro
-                    except Rubro.DoesNotExist:
-                        stats['errors'] += 1
-                        errors_log.append(f'Fila {row_num}: Rubro {rubro_cod} no existe')
-                        continue
+                    # En daily, intentar obtener o crear
+                    rubro = _get_or_create_rubro(data, rubros_cache)
 
             # Clasificador
             if is_initial:
@@ -1006,14 +1050,8 @@ def _process_sheetgasto(rows, col_map, is_xlsx, anio_fiscal, importacion, user,
                 if clasif_codigo in clasificadores_cache:
                     clasificador = clasificadores_cache[clasif_codigo]
                 else:
-                    # En daily, intentar obtener de BD
-                    try:
-                        clasificador = ClasificadorGasto.objects.get(codigo=clasif_codigo[:20])
-                        clasificadores_cache[clasif_codigo] = clasificador
-                    except ClasificadorGasto.DoesNotExist:
-                        stats['errors'] += 1
-                        errors_log.append(f'Fila {row_num}: Clasificador {clasif_codigo} no existe')
-                        continue
+                    # En daily, intentar obtener o crear
+                    clasificador = _get_or_create_clasificador(data, clasificadores_cache)
 
             # Clave de ejecución
             ejec_key = build_ejecucion_key(meta_codigo, rubro.codigo, clasificador.codigo)

@@ -13,8 +13,7 @@ django-cors-headers==4.3.1
 # Filters
 django-filter==23.5
 
-# Excel handling
-pandas==2.2.0
+# Excel handling (sin pandas/numpy para compatibilidad con hosting compartido)
 openpyxl==3.1.2
 
 # Environment variables
